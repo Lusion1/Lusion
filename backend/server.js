@@ -7,8 +7,32 @@ app.use(cors());
 app.use(express.json());
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/mahjong'
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/mahjong',
+  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('onrender.com')
+    ? { rejectUnauthorized: false }
+    : false
 });
+
+// DB가 없을 때를 대비해 서버가 켜질 때 기본 테이블을 자동 생성합니다.
+pool.query(`
+  CREATE TABLE IF NOT EXISTS match_results (
+      id SERIAL PRIMARY KEY,
+      match_date TIMESTAMP,
+      round INT,
+      wind VARCHAR(10),
+      player_name VARCHAR(50),
+      final_score INT,
+      rank INT,
+      uma FLOAT,
+      mangan INT,
+      haneman INT,
+      baiman INT,
+      sanbaiman INT,
+      yakuman INT,
+      kazoeyakuman INT,
+      doubleyakuman INT
+  );
+`).catch(err => console.error("Table creation error:", err));
 
 app.get('/api/stats', async (req, res) => {
   try {

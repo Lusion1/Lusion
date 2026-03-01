@@ -1,8 +1,13 @@
 const xlsx = require('xlsx');
 const { Client } = require('pg');
 
+const path = require('path');
+
 const client = new Client({
-    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@db:5432/mahjong'
+    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@db:5432/mahjong',
+    ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('onrender.com')
+        ? { rejectUnauthorized: false }
+        : false
 });
 
 async function run() {
@@ -11,7 +16,15 @@ async function run() {
     console.log("Clearing existing data...");
     await client.query('TRUNCATE TABLE match_results RESTART IDENTITY');
 
-    const workbook = xlsx.readFile('/app/data/아보하 마작 기록 (NEW).xlsx');
+    // 엑셀 파일의 위치를 로컬/클라우드 환경에 맞게 유동적으로 찾습니다.
+    let excelPath = '/app/data/아보하 마작 기록 (NEW).xlsx'; // 로컬 도커 환경
+    const cloudPath = path.join(__dirname, '..', '아보하 마작 기록 (NEW).xlsx'); // 클라우드(Render/GitHub) 환경
+
+    if (require('fs').existsSync(cloudPath)) {
+        excelPath = cloudPath;
+    }
+
+    const workbook = xlsx.readFile(excelPath);
     const sheet = workbook.Sheets['기록'];
     const rawData = xlsx.utils.sheet_to_json(sheet);
 
