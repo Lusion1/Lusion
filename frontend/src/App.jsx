@@ -3,6 +3,12 @@ import React, { useState, useEffect } from 'react';
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api';
 
 export default function App() {
+    const [authToken, setAuthToken] = useState(localStorage.getItem('mahjong_token') || null);
+    const [userRole, setUserRole] = useState(localStorage.getItem('mahjong_role') || null);
+    const [loginId, setLoginId] = useState('');
+    const [loginPassword, setLoginPassword] = useState('');
+    const [loginError, setLoginError] = useState('');
+
     const [activeTab, setActiveTab] = useState('new-record');
     const [stats, setStats] = useState([]);
 
@@ -97,7 +103,10 @@ export default function App() {
 
             const res = await fetch(url, {
                 method: method,
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
                 body: JSON.stringify({
                     date: newRecordDate,
                     players: newPlayers.map(p => ({
@@ -477,7 +486,8 @@ export default function App() {
         if (!window.confirm(`정말로 라운드 ${round}의 기록을 삭제하시겠습니까?`)) return;
         try {
             const res = await fetch(`${API_BASE}/records/${round}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${authToken}` }
             });
             if (res.ok) {
                 alert('기록이 성공적으로 삭제되었습니다.');
@@ -575,20 +585,22 @@ export default function App() {
                                                 {itemIdx === 0 && (
                                                     <td rowSpan={group.length} className="p-3 align-middle text-center border-r border-slate-200 bg-slate-100">
                                                         <div className="font-black text-slate-800 text-xl whitespace-nowrap mb-2">R{r.round}</div>
-                                                        <div className="flex flex-col gap-1 items-center px-2">
-                                                            <button
-                                                                onClick={() => handleEditRound(group)}
-                                                                className="w-full px-3 py-1 bg-white border border-slate-300 text-slate-600 rounded text-xs font-bold hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 transition-colors shadow-sm"
-                                                            >
-                                                                ✍️ 수정
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDeleteRound(r.round)}
-                                                                className="w-full px-3 py-1 bg-white border border-red-200 text-red-500 rounded text-xs font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-400 transition-colors shadow-sm"
-                                                            >
-                                                                🗑️ 삭제
-                                                            </button>
-                                                        </div>
+                                                        {userRole === 'admin' && (
+                                                            <div className="flex flex-col gap-1 items-center px-2">
+                                                                <button
+                                                                    onClick={() => handleEditRound(group)}
+                                                                    className="w-full px-3 py-1 bg-white border border-slate-300 text-slate-600 rounded text-xs font-bold hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 transition-colors shadow-sm"
+                                                                >
+                                                                    ✍️ 수정
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteRound(r.round)}
+                                                                    className="w-full px-3 py-1 bg-white border border-red-200 text-red-500 rounded text-xs font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-400 transition-colors shadow-sm"
+                                                                >
+                                                                    🗑️ 삭제
+                                                                </button>
+                                                            </div>
+                                                        )}
                                                     </td>
                                                 )}
                                                 <td className="p-3 font-bold text-slate-800">{r.player_name}</td>
@@ -777,6 +789,57 @@ export default function App() {
         );
     };
 
+    if (!authToken) {
+        const handleLogin = async (e) => {
+            e.preventDefault();
+            setLoginError('');
+            try {
+                const res = await fetch(`${API_BASE}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: loginId, password: loginPassword })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    setAuthToken(data.token);
+                    setUserRole(data.role);
+                    localStorage.setItem('mahjong_token', data.token);
+                    localStorage.setItem('mahjong_role', data.role);
+                } else {
+                    setLoginError(data.message);
+                }
+            } catch (err) {
+                setLoginError('로그인 중 서버와 통신할 수 없습니다.');
+            }
+        };
+
+        return (
+            <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans text-slate-800">
+                <div className="bg-white p-8 rounded-xl shadow-lg max-w-sm w-full">
+                    <h1 className="text-3xl font-black text-center text-slate-800 mb-6 tracking-tight">
+                        <span className="text-orange-500">🀄</span> 마작 기록
+                    </h1>
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">아이디</label>
+                            <input type="text" value={loginId} onChange={(e) => setLoginId(e.target.value)}
+                                className="w-full border-2 border-slate-200 p-3 rounded-lg bg-slate-50 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 transition" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">비밀번호</label>
+                            <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)}
+                                className="w-full border-2 border-slate-200 p-3 rounded-lg bg-slate-50 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 transition" />
+                        </div>
+                        {loginError && <p className="text-red-500 text-sm font-bold">{loginError}</p>}
+                        <button type="submit" className="w-full bg-slate-800 text-white font-bold text-lg p-3 rounded-xl shadow-lg hover:bg-slate-700 hover:shadow-xl transition-all hover:-translate-y-0.5 mt-2">
+                            로그인
+                        </button>
+                    </form>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
             {/* Sidebar Navigation */}
@@ -804,6 +867,20 @@ export default function App() {
                             {tab.label}
                         </button>
                     ))}
+
+                    <div className="pt-8">
+                        <button
+                            onClick={() => {
+                                setAuthToken(null);
+                                setUserRole(null);
+                                localStorage.removeItem('mahjong_token');
+                                localStorage.removeItem('mahjong_role');
+                            }}
+                            className="w-full text-left px-5 py-4 rounded-xl font-bold transition-all duration-200 text-red-400 hover:bg-red-500/10 hover:text-red-300 flex items-center gap-2"
+                        >
+                            <span>👋</span> 로그아웃
+                        </button>
+                    </div>
                 </nav>
             </aside>
 

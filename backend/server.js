@@ -34,6 +34,45 @@ pool.query(`
   );
 `).catch(err => console.error("Table creation error:", err));
 
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || 'mahjong_secret_key_123';
+
+app.post('/api/login', (req, res) => {
+  const { id, password } = req.body;
+
+  if (id === 'q' && password === '1') {
+    const token = jwt.sign({ id, role: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
+    return res.json({ success: true, token, role: 'admin' });
+  }
+
+  if (id === 'user' && password === '11') {
+    const token = jwt.sign({ id, role: 'user' }, JWT_SECRET, { expiresIn: '7d' });
+    return res.json({ success: true, token, role: 'user' });
+  }
+
+  res.status(401).json({ success: false, message: '아이디 또는 비밀번호가 잘못되었습니다.' });
+});
+
+const checkAuth = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).send('Unauthorized');
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).send('Invalid Token');
+  }
+};
+
+const checkAdmin = (req, res, next) => {
+  if (req.user?.role !== 'admin') {
+    return res.status(403).send('Forbidden: 관리자만 접근 가능합니다.');
+  }
+  next();
+};
+
 app.get('/api/stats', async (req, res) => {
   try {
     const year = req.query.year;
@@ -199,7 +238,7 @@ app.get('/api/records', async (req, res) => {
   } catch (err) { res.status(500).send(err.toString()); }
 });
 
-app.post('/api/records', async (req, res) => {
+app.post('/api/records', checkAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { date, players } = req.body;
@@ -237,7 +276,7 @@ app.post('/api/records', async (req, res) => {
   }
 });
 
-app.put('/api/records/:round', async (req, res) => {
+app.put('/api/records/:round', checkAuth, checkAdmin, async (req, res) => {
   const client = await pool.connect();
   try {
     const roundToEdit = parseInt(req.params.round);
@@ -276,7 +315,7 @@ app.put('/api/records/:round', async (req, res) => {
   }
 });
 
-app.delete('/api/records/:round', async (req, res) => {
+app.delete('/api/records/:round', checkAuth, checkAdmin, async (req, res) => {
   try {
     const roundToDelete = parseInt(req.params.round);
     if (!roundToDelete) {
