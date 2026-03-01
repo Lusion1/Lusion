@@ -276,4 +276,14 @@ app.put('/api/records/:round', async (req, res) => {
   }
 });
 
+app.get('/api/init-db', (req, res) => {
+  const { exec } = require('child_process');
+  exec('node import_data.js', (error, stdout, stderr) => {
+    if (error) {
+      return res.status(500).send(`Error: ${error.message}\nStderr: ${stderr}`);
+    }
+    res.send(`Import Output: ${stdout}`);
+  });
+});
+
 app.listen(5000, () => console.log('Backend listening on port 5000'));
