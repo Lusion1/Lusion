@@ -8,7 +8,7 @@ app.use(express.json());
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/mahjong',
-  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('onrender.com')
+  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com')
     ? { rejectUnauthorized: false }
     : false
 });
@@ -273,6 +273,19 @@ app.put('/api/records/:round', async (req, res) => {
     res.status(500).send(err.toString());
   } finally {
     client.release();
+  }
+});
+
+app.delete('/api/records/:round', async (req, res) => {
+  try {
+    const roundToDelete = parseInt(req.params.round);
+    if (!roundToDelete) {
+      return res.status(400).send("Invalid round data");
+    }
+    await pool.query('DELETE FROM match_results WHERE round = $1', [roundToDelete]);
+    res.json({ success: true, round: roundToDelete });
+  } catch (err) {
+    res.status(500).send(err.toString());
   }
 });
 

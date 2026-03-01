@@ -5,7 +5,7 @@ const path = require('path');
 
 const client = new Client({
     connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@db:5432/mahjong',
-    ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('onrender.com')
+    ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com')
         ? { rejectUnauthorized: false }
         : false
 });

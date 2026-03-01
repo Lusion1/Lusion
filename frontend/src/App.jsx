@@ -473,6 +473,24 @@ export default function App() {
         setActiveTab('new-record');
     };
 
+    const handleDeleteRound = async (round) => {
+        if (!window.confirm(`정말로 라운드 ${round}의 기록을 삭제하시겠습니까?`)) return;
+        try {
+            const res = await fetch(`${API_BASE}/records/${round}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) {
+                alert('기록이 성공적으로 삭제되었습니다.');
+                window.location.reload();
+            } else {
+                alert('삭제 중 오류가 발생했습니다.');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('삭제 중 서버와 통신할 수 없습니다.');
+        }
+    };
+
     const renderRecords = () => {
         const groupedRecords = [];
         let currentGroup = [];
@@ -557,12 +575,20 @@ export default function App() {
                                                 {itemIdx === 0 && (
                                                     <td rowSpan={group.length} className="p-3 align-middle text-center border-r border-slate-200 bg-slate-100">
                                                         <div className="font-black text-slate-800 text-xl whitespace-nowrap mb-2">R{r.round}</div>
-                                                        <button
-                                                            onClick={() => handleEditRound(group)}
-                                                            className="px-3 py-1 bg-white border border-slate-300 text-slate-600 rounded text-xs font-bold hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 transition-colors shadow-sm"
-                                                        >
-                                                            ✍️ 수정
-                                                        </button>
+                                                        <div className="flex flex-col gap-1 items-center px-2">
+                                                            <button
+                                                                onClick={() => handleEditRound(group)}
+                                                                className="w-full px-3 py-1 bg-white border border-slate-300 text-slate-600 rounded text-xs font-bold hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 transition-colors shadow-sm"
+                                                            >
+                                                                ✍️ 수정
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteRound(r.round)}
+                                                                className="w-full px-3 py-1 bg-white border border-red-200 text-red-500 rounded text-xs font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-400 transition-colors shadow-sm"
+                                                            >
+                                                                🗑️ 삭제
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 )}
                                                 <td className="p-3 font-bold text-slate-800">{r.player_name}</td>
