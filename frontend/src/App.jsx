@@ -31,6 +31,7 @@ export default function App() {
     const emptyPlayerRow = { name: '', score: '', mangan: '', haneman: '', baiman: '', sanbaiman: '', yakuman: '', kazoeyakuman: '', doubleyakuman: '' };
     const [newRecordDate, setNewRecordDate] = useState(getTodayString());
     const [editingRound, setEditingRound] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [newPlayers, setNewPlayers] = useState([
         { ...emptyPlayerRow, wind: '동' },
         { ...emptyPlayerRow, wind: '남' },
@@ -97,6 +98,7 @@ export default function App() {
             return;
         }
 
+        setIsSubmitting(true);
         try {
             const url = editingRound ? `${API_BASE}/records/${editingRound}` : `${API_BASE}/records`;
             const method = editingRound ? 'PUT' : 'POST';
@@ -135,6 +137,8 @@ export default function App() {
         } catch (e) {
             console.error(e);
             alert('저장 중 서버와 통신할 수 없습니다.');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -217,17 +221,17 @@ export default function App() {
 
                                     <td className="p-3 font-black text-slate-800 border-r border-slate-100">{top3[0]?.player_name || '-'}</td>
                                     <td className={`p-3 font-bold border-r border-slate-100 ${top3[0] ? 'text-orange-600' : 'text-slate-400'}`}>
-                                        {top3[0] ? cat.format(top3[0][cat.key]) : '-'}
+                                        {top3[0] && top3[0][cat.key] !== null && top3[0][cat.key] !== undefined ? cat.format(top3[0][cat.key]) : '-'}
                                     </td>
 
                                     <td className="p-3 font-bold text-slate-700 border-r border-slate-100">{top3[1]?.player_name || '-'}</td>
                                     <td className={`p-3 font-medium border-r border-slate-100 ${top3[1] ? 'text-slate-600' : 'text-slate-400'}`}>
-                                        {top3[1] ? cat.format(top3[1][cat.key]) : '-'}
+                                        {top3[1] && top3[1][cat.key] !== null && top3[1][cat.key] !== undefined ? cat.format(top3[1][cat.key]) : '-'}
                                     </td>
 
                                     <td className="p-3 font-bold text-slate-700 border-r border-slate-100">{top3[2]?.player_name || '-'}</td>
                                     <td className={`p-3 font-medium ${top3[2] ? 'text-slate-600' : 'text-slate-400'}`}>
-                                        {top3[2] ? cat.format(top3[2][cat.key]) : '-'}
+                                        {top3[2] && top3[2][cat.key] !== null && top3[2][cat.key] !== undefined ? cat.format(top3[2][cat.key]) : '-'}
                                     </td>
                                 </tr>
                             );
@@ -774,16 +778,27 @@ export default function App() {
                     <div className="flex gap-3">
                         <button
                             onClick={handleClearRecord}
-                            className="px-6 py-3 rounded-lg font-bold shadow-md transition-colors bg-white border border-slate-300 text-slate-600 hover:bg-slate-100 hover:text-slate-800"
+                            disabled={isSubmitting}
+                            className={`px-6 py-3 rounded-lg font-bold shadow-md transition-colors border ${isSubmitting ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100 hover:text-slate-800'}`}
                         >
                             전체 지우기
                         </button>
                         <button
                             onClick={handleSubmitRecord}
-                            disabled={totalScore !== 100000}
-                            className={`px-8 py-3 rounded-lg font-bold shadow-md transition-colors ${totalScore === 100000 ? 'bg-orange-500 hover:bg-orange-600 text-white border border-transparent' : 'bg-slate-300 text-slate-500 cursor-not-allowed border border-transparent'}`}
+                            disabled={totalScore !== 100000 || isSubmitting}
+                            className={`px-8 py-3 rounded-lg font-bold shadow-md transition-colors border border-transparent flex items-center gap-2 ${totalScore === 100000 && !isSubmitting ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`}
                         >
-                            {editingRound ? '수정 완료' : '기록 DB에 저장'}
+                            {isSubmitting ? (
+                                <>
+                                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    저장 중...
+                                </>
+                            ) : (
+                                editingRound ? '수정 완료' : '기록 DB에 저장'
+                            )}
                         </button>
                     </div>
                 </div>
@@ -807,6 +822,10 @@ export default function App() {
                     setUserRole(data.role);
                     localStorage.setItem('mahjong_token', data.token);
                     localStorage.setItem('mahjong_role', data.role);
+
+                    if (data.role === 'user') {
+                        setActiveTab('records'); // For users, default to records tab
+                    }
                 } else {
                     setLoginError(data.message);
                 }
@@ -852,7 +871,7 @@ export default function App() {
                 </div>
                 <nav className="flex-1 p-4 space-y-2">
                     {[
-                        { id: 'new-record', label: '기록 입력하기' },
+                        ...(userRole === 'admin' ? [{ id: 'new-record', label: '기록 입력하기' }] : []),
                         { id: 'records', label: '개별 기록' },
                         { id: 'stats', label: '전체 통계' },
                         { id: 'dashboard', label: '명예의 전당' },

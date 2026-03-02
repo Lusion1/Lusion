@@ -88,8 +88,8 @@ app.get('/api/stats', async (req, res) => {
       SELECT 
         player_name,
         COUNT(*) as total_matches,
-        AVG(rank) as avg_rank,
-        AVG(uma) as avg_uma,
+        AVG(rank)::numeric as avg_rank,
+        AVG(uma)::numeric as avg_uma,
         SUM(uma) as total_uma,
         SUM(CASE WHEN rank = 1 THEN 1 ELSE 0 END)::decimal / COUNT(*) as rank1_rate,
         SUM(CASE WHEN rank = 2 THEN 1 ELSE 0 END)::decimal / COUNT(*) as rank2_rate,
@@ -99,7 +99,7 @@ app.get('/api/stats', async (req, res) => {
         SUM(CASE WHEN final_score < 0 THEN 1 ELSE 0 END)::decimal / COUNT(*) as tobi_rate,
         MAX(final_score) as max_score,
         MIN(final_score) as min_score,
-        AVG(final_score) as avg_score,
+        AVG(final_score)::numeric as avg_score,
         SUM(mangan) as total_mangan,
         SUM(haneman) as total_haneman,
         SUM(baiman) as total_baiman,
@@ -238,7 +238,7 @@ app.get('/api/records', async (req, res) => {
   } catch (err) { res.status(500).send(err.toString()); }
 });
 
-app.post('/api/records', checkAuth, async (req, res) => {
+app.post('/api/records', checkAuth, checkAdmin, async (req, res) => {
   const client = await pool.connect();
   try {
     const { date, players } = req.body;
