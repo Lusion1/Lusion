@@ -9,7 +9,7 @@ export default function App() {
     const [loginPassword, setLoginPassword] = useState('');
     const [loginError, setLoginError] = useState('');
 
-    const [activeTab, setActiveTab] = useState('new-record');
+    const [activeTab, setActiveTab] = useState(localStorage.getItem('mahjong_role') === 'admin' ? 'new-record' : 'stats');
     const [stats, setStats] = useState([]);
 
     // Rival comparison state
@@ -301,6 +301,14 @@ export default function App() {
                         <th className="p-3 border-r border-slate-700 text-orange-400 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank')}>평균 순위 {getSortIndicator('avg_rank')}</th>
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('avg_uma')}>평균 우마 {getSortIndicator('avg_uma')}</th>
                         <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition" onClick={() => requestSort('total_uma')}>총 우마 {getSortIndicator('total_uma')}</th>
+                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('count_east')}>동 착석 {getSortIndicator('count_east')}</th>
+                        <th className="p-3 border-r border-slate-700 text-blue-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank_east')}>동 평균순위 {getSortIndicator('avg_rank_east')}</th>
+                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('count_south')}>남 착석 {getSortIndicator('count_south')}</th>
+                        <th className="p-3 border-r border-slate-700 text-blue-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank_south')}>남 평균순위 {getSortIndicator('avg_rank_south')}</th>
+                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('count_west')}>서 착석 {getSortIndicator('count_west')}</th>
+                        <th className="p-3 border-r border-slate-700 text-blue-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank_west')}>서 평균순위 {getSortIndicator('avg_rank_west')}</th>
+                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('count_north')}>북 착석 {getSortIndicator('count_north')}</th>
+                        <th className="p-3 border-r border-slate-700 text-blue-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank_north')}>북 평균순위 {getSortIndicator('avg_rank_north')}</th>
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank1_rate')}>1위율 {getSortIndicator('rank1_rate')}</th>
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank2_rate')}>2위율 {getSortIndicator('rank2_rate')}</th>
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank3_rate')}>3위율 {getSortIndicator('rank3_rate')}</th>
@@ -330,6 +338,14 @@ export default function App() {
                                 <td className={`p-3 font-black border-r ${isHighlighted ? 'border-orange-200 text-orange-900' : 'border-slate-100'} ${getRankColor(idx)}`}>{Number(s.avg_rank).toFixed(2)}</td>
                                 <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.avg_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.avg_uma).toFixed(2)}</td>
                                 <td className={`p-3 font-black border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.total_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.total_uma).toFixed(1)}</td>
+                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{s.count_east}</td>
+                                <td className={`p-3 border-r font-bold ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.avg_rank_east ? 'text-blue-600' : 'text-slate-400'}`}>{s.avg_rank_east ? Number(s.avg_rank_east).toFixed(2) : '-'}</td>
+                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{s.count_south}</td>
+                                <td className={`p-3 border-r font-bold ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.avg_rank_south ? 'text-blue-600' : 'text-slate-400'}`}>{s.avg_rank_south ? Number(s.avg_rank_south).toFixed(2) : '-'}</td>
+                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{s.count_west}</td>
+                                <td className={`p-3 border-r font-bold ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.avg_rank_west ? 'text-blue-600' : 'text-slate-400'}`}>{s.avg_rank_west ? Number(s.avg_rank_west).toFixed(2) : '-'}</td>
+                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{s.count_north}</td>
+                                <td className={`p-3 border-r font-bold ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.avg_rank_north ? 'text-blue-600' : 'text-slate-400'}`}>{s.avg_rank_north ? Number(s.avg_rank_north).toFixed(2) : '-'}</td>
                                 <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{(s.rank1_rate * 100).toFixed(1)}%</td>
                                 <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{(s.rank2_rate * 100).toFixed(1)}%</td>
                                 <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{(s.rank3_rate * 100).toFixed(1)}%</td>
@@ -824,7 +840,7 @@ export default function App() {
                     localStorage.setItem('mahjong_role', data.role);
 
                     if (data.role === 'user') {
-                        setActiveTab('records'); // For users, default to records tab
+                        setActiveTab('stats'); // Default to 'Overall Stats' for users
                     }
                 } else {
                     setLoginError(data.message);

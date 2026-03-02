@@ -107,7 +107,15 @@ app.get('/api/stats', async (req, res) => {
         SUM(yakuman) as total_yakuman,
         SUM(kazoeyakuman) as total_kazoeyakuman,
         SUM(doubleyakuman) as total_doubleyakuman,
-        MAX(CASE WHEN rank = 2 THEN final_score ELSE NULL END) as max_score_rank2
+        MAX(CASE WHEN rank = 2 THEN final_score ELSE NULL END) as max_score_rank2,
+        SUM(CASE WHEN wind = '동' THEN 1 ELSE 0 END) as count_east,
+        SUM(CASE WHEN wind = '남' THEN 1 ELSE 0 END) as count_south,
+        SUM(CASE WHEN wind = '서' THEN 1 ELSE 0 END) as count_west,
+        SUM(CASE WHEN wind = '북' THEN 1 ELSE 0 END) as count_north,
+        AVG(CASE WHEN wind = '동' THEN rank ELSE NULL END)::numeric as avg_rank_east,
+        AVG(CASE WHEN wind = '남' THEN rank ELSE NULL END)::numeric as avg_rank_south,
+        AVG(CASE WHEN wind = '서' THEN rank ELSE NULL END)::numeric as avg_rank_west,
+        AVG(CASE WHEN wind = '북' THEN rank ELSE NULL END)::numeric as avg_rank_north
       FROM match_results
       ${whereClause}
       GROUP BY player_name
