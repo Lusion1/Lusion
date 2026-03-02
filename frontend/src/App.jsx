@@ -559,6 +559,7 @@ export default function App() {
                         <tr className="bg-slate-900 text-white">
                             <th className="p-3 rounded-tl-lg text-center border-r border-slate-700">날짜</th>
                             <th className="p-3 text-center border-r border-slate-700">라운드</th>
+                            <th className="p-3 text-center">바람</th>
                             <th className="p-3">이름</th>
                             <th className="p-3">순위</th>
                             <th className="p-3">점수</th>
@@ -603,6 +604,7 @@ export default function App() {
                                                         )}
                                                     </td>
                                                 )}
+                                                <td className="p-3 text-center font-black text-slate-500">{r.wind}</td>
                                                 <td className="p-3 font-bold text-slate-800">{r.player_name}</td>
                                                 <td className={`p-3 font-black ${rankColor}`}>{r.rank}</td>
                                                 <td className="p-3">{r.final_score.toLocaleString()}</td>
@@ -621,7 +623,7 @@ export default function App() {
                             );
                         }) : (
                             <tr>
-                                <td colSpan="7" className="p-6 text-center text-slate-500">검색 결과가 없습니다.</td>
+                                <td colSpan="8" className="p-6 text-center text-slate-500">검색 결과가 없습니다.</td>
                             </tr>
                         )}
                     </tbody>
