@@ -234,17 +234,15 @@ export default function App() {
                     </span>
                 </div>
 
-                <table className="w-full text-center border-collapse text-sm whitespace-nowrap">
+                <table className="w-full text-center border-collapse text-sm whitespace-nowrap min-w-[800px]">
                     <thead>
-                        <thead>
-                            <tr className="bg-slate-900 text-white border-b-2 border-slate-700 sticky-top">
-                                <th className="p-3 border-r border-slate-700 rounded-tl-lg font-bold">타이틀</th>
-                                <th className="p-3 border-r border-slate-700 font-bold">항목</th>
-                                <th colSpan="2" className="p-3 border-r border-slate-700 font-bold text-yellow-500">🥇 1위</th>
-                                <th colSpan="2" className="p-3 border-r border-slate-700 font-bold text-slate-400">🥈 2위</th>
-                                <th colSpan="2" className="p-3 rounded-tr-lg font-bold text-orange-400">🥉 3위</th>
-                            </tr>
-                        </thead>
+                        <tr className="bg-slate-900 text-white border-b-2 border-slate-700 sticky-top">
+                            <th className="p-3 border-r border-slate-700 rounded-tl-lg font-bold">타이틀</th>
+                            <th className="p-3 border-r border-slate-700 font-bold">항목</th>
+                            <th colSpan="2" className="p-3 border-r border-slate-700 font-bold text-yellow-500">🥇 1위</th>
+                            <th colSpan="2" className="p-3 border-r border-slate-700 font-bold text-slate-400">🥈 2위</th>
+                            <th colSpan="2" className="p-3 rounded-tr-lg font-bold text-orange-400">🥉 3위</th>
+                        </tr>
                     </thead>
                     <tbody>
                         {dashboardCategories.map((cat, idx) => {
@@ -369,8 +367,8 @@ export default function App() {
                             <tr key={s.player_name} className={`border-b transition text-center ${isHighlighted ? 'bg-orange-100 hover:bg-orange-200 border-orange-300' : 'hover:bg-slate-50 border-slate-100'}`}>
                                 <td className={`p-3 font-medium border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100 text-slate-400 bg-slate-50'}`}>{idx + 1}</td>
                                 <td className={`p-3 font-bold border-r sticky-left z-20 ${isHighlighted ? 'border-orange-200 text-orange-900 bg-orange-100' : 'border-slate-100 text-slate-800 bg-white'}`}>{s.player_name}</td>
-                                <td className={`p-3 font-medium border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100 text-slate-600'}`}>{s.total_matches}</td>
-                                <td className={`p-3 font-black border-r ${isHighlighted ? 'border-orange-200 text-orange-900' : 'border-slate-100'} ${getRankColor(idx)}`}>{Number(s.avg_rank).toFixed(2)}</td>
+                                <td className={`p-3 font-medium border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{s.total_matches}</td>
+                                <td className={`p-3 font-black border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${getRankColor(idx)}`}>{Number(s.avg_rank).toFixed(2)}</td>
                                 <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.avg_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.avg_uma).toFixed(2)}</td>
                                 <td className={`p-3 font-black border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.total_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.total_uma).toFixed(1)}</td>
                                 <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{(s.rank1_rate * 100).toFixed(1)}%</td>
@@ -1187,16 +1185,16 @@ export default function App() {
 
                     {/* Player Dropdown Data */}
                     <datalist id="player-names">
-                        {[...players]
-                            .sort((a, b) => {
-                                const sA = stats.find(s => s.player_name === a.name);
-                                const sB = stats.find(s => s.player_name === b.name);
-                                const matchesA = sA ? sA.total_matches : 0;
-                                const matchesB = sB ? sB.total_matches : 0;
-                                return matchesB - matchesA;
-                            })
-                            .map(p => <option key={p.id} value={p.name} />)
-                        }
+                        {(() => {
+                            const sortedList = [...players].sort((a, b) => {
+                                const sA = stats.find(s => s.player_name?.trim() === a.name?.trim());
+                                const sB = stats.find(s => s.player_name?.trim() === b.name?.trim());
+                                const countA = sA ? Number(sA.total_matches || 0) : 0;
+                                const countB = sB ? Number(sB.total_matches || 0) : 0;
+                                return countB - countA;
+                            });
+                            return sortedList.map(p => <option key={p.id} value={p.name} />);
+                        })()}
                     </datalist>
                 </div>
             </main>
