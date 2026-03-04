@@ -47,13 +47,14 @@ const initDB = async () => {
     `);
 
     // 3. 기존 기록 -> 플레이어 테이블 마이그레이션
-    await pool.query(`
+    const migrationResult = await pool.query(`
       INSERT INTO players (name)
       SELECT DISTINCT player_name FROM match_results
+      WHERE player_name IS NOT NULL AND player_name != ''
       ON CONFLICT (name) DO NOTHING;
     `);
 
-    console.log("Database initialized successfully.");
+    console.log(`Database initialized. Migrated ${migrationResult.rowCount || 0} existing player names.`);
   } catch (err) {
     console.error("Database initialization error:", err);
   }
@@ -61,41 +62,8 @@ const initDB = async () => {
 
 initDB();
 
-app.get('/api/players', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM players ORDER BY name ASC');
-    res.json(result.rows);
-  } catch (err) { res.status(500).send(err.toString()); }
-});
-
-app.post('/api/players', checkAuth, checkAdmin, async (req, res) => {
-  try {
-    const { name } = req.body;
-    if (!name || name.trim() === '') return res.status(400).send("Name is required");
-
-    await pool.query('INSERT INTO players (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [name.trim()]);
-    res.json({ success: true });
-  } catch (err) { res.status(500).send(err.toString()); }
-});
-
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'mahjong_secret_key_123';
-
-app.post('/api/login', (req, res) => {
-  const { id, password } = req.body;
-
-  if (id === 'q' && password === '1') {
-    const token = jwt.sign({ id, role: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
-    return res.json({ success: true, token, role: 'admin' });
-  }
-
-  if (id === 'user' && password === '11') {
-    const token = jwt.sign({ id, role: 'user' }, JWT_SECRET, { expiresIn: '7d' });
-    return res.json({ success: true, token, role: 'user' });
-  }
-
-  res.status(401).json({ success: false, message: '아이디 또는 비밀번호가 잘못되었습니다.' });
-});
 
 const checkAuth = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
@@ -116,6 +84,52 @@ const checkAdmin = (req, res, next) => {
   }
   next();
 };
+
+app.get('/api/players', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM players ORDER BY name ASC');
+    res.json(result.rows);
+  } catch (err) { res.status(500).send(err.toString()); }
+});
+
+app.post('/api/players', checkAuth, checkAdmin, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || name.trim() === '') return res.status(400).send("Name is required");
+
+    await pool.query('INSERT INTO players (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [name.trim()]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).send(err.toString()); }
+});
+
+app.post('/api/sync-players', checkAuth, checkAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      INSERT INTO players (name)
+      SELECT DISTINCT player_name FROM match_results
+      WHERE player_name IS NOT NULL AND player_name != ''
+      ON CONFLICT (name) DO NOTHING
+    `);
+    res.json({ success: true, count: result.rowCount || 0 });
+  } catch (err) { res.status(500).send(err.toString()); }
+});
+
+
+app.post('/api/login', (req, res) => {
+  const { id, password } = req.body;
+
+  if (id === 'q' && password === '1') {
+    const token = jwt.sign({ id, role: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
+    return res.json({ success: true, token, role: 'admin' });
+  }
+
+  if (id === 'user' && password === '11') {
+    const token = jwt.sign({ id, role: 'user' }, JWT_SECRET, { expiresIn: '7d' });
+    return res.json({ success: true, token, role: 'user' });
+  }
+
+  res.status(401).json({ success: false, message: '아이디 또는 비밀번호가 잘못되었습니다.' });
+});
 
 app.get('/api/stats', async (req, res) => {
   try {
