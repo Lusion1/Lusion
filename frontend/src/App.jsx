@@ -10,7 +10,9 @@ export default function App() {
     const [loginError, setLoginError] = useState('');
 
     const [activeTab, setActiveTab] = useState(localStorage.getItem('mahjong_role') === 'admin' ? 'new-record' : 'stats');
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [stats, setStats] = useState([]);
+    const [dailyStats, setDailyStats] = useState([]);
 
     // Rival comparison state
     const [p1, setP1] = useState('');
@@ -51,6 +53,11 @@ export default function App() {
         fetch(`${API_BASE}/stats?year=${globalYear}`)
             .then(res => res.json())
             .then(data => setStats(data))
+            .catch(err => console.error(err));
+
+        fetch(`${API_BASE}/daily-stats`)
+            .then(res => res.json())
+            .then(data => setDailyStats(data))
             .catch(err => console.error(err));
     }, [globalYear]);
 
@@ -203,8 +210,8 @@ export default function App() {
 
                 <table className="w-full text-center border-collapse text-sm whitespace-nowrap">
                     <thead>
-                        <tr className="bg-slate-900 text-white border-b-2 border-slate-700">
-                            <th className="p-3 border-r border-slate-700 rounded-tl-lg font-bold">타이틀</th>
+                        <tr className="bg-slate-900 text-white border-b-2 border-slate-700 sticky-top">
+                            <th className="p-3 border-r border-slate-700 rounded-tl-lg font-bold sticky-left bg-slate-900 z-[31]">타이틀</th>
                             <th className="p-3 border-r border-slate-700 font-bold">항목</th>
                             <th colSpan="2" className="p-3 border-r border-slate-700 font-bold text-yellow-500">🥇 1위</th>
                             <th colSpan="2" className="p-3 border-r border-slate-700 font-bold text-slate-400">🥈 2위</th>
@@ -216,7 +223,7 @@ export default function App() {
                             const top3 = getSortedForCategory(cat.key, cat.sort);
                             return (
                                 <tr key={idx} className="border-b transition hover:bg-slate-50 border-slate-100">
-                                    <td className="p-3 font-bold text-slate-800 border-r border-slate-100 bg-slate-50 text-left">{cat.title}</td>
+                                    <td className="p-3 font-bold text-slate-800 border-r border-slate-100 bg-slate-50 text-left sticky-left z-20">{cat.title}</td>
                                     <td className="p-3 font-medium text-slate-600 border-r border-slate-100">{cat.item}</td>
 
                                     <td className="p-3 font-black text-slate-800 border-r border-slate-100">{top3[0]?.player_name || '-'}</td>
@@ -294,9 +301,9 @@ export default function App() {
             </div>
             <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
                 <thead>
-                    <tr className="bg-slate-900 text-white text-center cursor-pointer select-none">
-                        <th className="p-3 rounded-tl-lg border-r border-slate-700 font-bold hover:bg-slate-800 transition text-slate-400">#</th>
-                        <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition" onClick={() => requestSort('player_name')}>이름 {getSortIndicator('player_name')}</th>
+                    <tr className="bg-slate-900 text-white text-center cursor-pointer select-none sticky-top">
+                        <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition text-slate-400">#</th>
+                        <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition sticky-left bg-slate-900 z-[31]" onClick={() => requestSort('player_name')}>이름 {getSortIndicator('player_name')}</th>
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('total_matches')}>총 게임수 {getSortIndicator('total_matches')}</th>
                         <th className="p-3 border-r border-slate-700 text-orange-400 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank')}>평균 순위 {getSortIndicator('avg_rank')}</th>
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('avg_uma')}>평균 우마 {getSortIndicator('avg_uma')}</th>
@@ -333,7 +340,7 @@ export default function App() {
                         return (
                             <tr key={s.player_name} className={`border-b transition text-center ${isHighlighted ? 'bg-orange-100 hover:bg-orange-200 border-orange-300' : 'hover:bg-slate-50 border-slate-100'}`}>
                                 <td className={`p-3 font-medium border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100 text-slate-400 bg-slate-50'}`}>{idx + 1}</td>
-                                <td className={`p-3 font-bold border-r ${isHighlighted ? 'border-orange-200 text-orange-900 bg-orange-100' : 'border-slate-100 text-slate-800 bg-slate-50'}`}>{s.player_name}</td>
+                                <td className={`p-3 font-bold border-r sticky-left z-20 ${isHighlighted ? 'border-orange-200 text-orange-900 bg-orange-100' : 'border-slate-100 text-slate-800 bg-white'}`}>{s.player_name}</td>
                                 <td className={`p-3 font-medium border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100 text-slate-600'}`}>{s.total_matches}</td>
                                 <td className={`p-3 font-black border-r ${isHighlighted ? 'border-orange-200 text-orange-900' : 'border-slate-100'} ${getRankColor(idx)}`}>{Number(s.avg_rank).toFixed(2)}</td>
                                 <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.avg_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.avg_uma).toFixed(2)}</td>
@@ -576,15 +583,15 @@ export default function App() {
 
                 <table className="w-full text-left border-collapse text-sm">
                     <thead>
-                        <tr className="bg-slate-900 text-white">
-                            <th className="p-3 rounded-tl-lg text-center border-r border-slate-700">날짜</th>
+                        <tr className="bg-slate-900 text-white sticky-top">
+                            <th className="p-3 text-center border-r border-slate-700 sticky-left bg-slate-900 z-[31]">날짜</th>
                             <th className="p-3 text-center border-r border-slate-700">라운드</th>
                             <th className="p-3 text-center">바람</th>
                             <th className="p-3">이름</th>
                             <th className="p-3">순위</th>
                             <th className="p-3">점수</th>
                             <th className="p-3">우마</th>
-                            <th className="p-3 rounded-tr-lg">특이사항 (만관이상)</th>
+                            <th className="p-3">특이사항</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -599,8 +606,8 @@ export default function App() {
                                         return (
                                             <tr key={r.id} className={`${bgClass} hover:bg-orange-100 transition border-b border-slate-100`}>
                                                 {itemIdx === 0 && (
-                                                    <td rowSpan={group.length} className="p-3 align-middle text-center border-r border-slate-200">
-                                                        <div className="font-bold text-slate-600 whitespace-nowrap">{new Date(r.match_date).toLocaleDateString()}</div>
+                                                    <td rowSpan={group.length} className="p-3 align-middle text-center border-r border-slate-200 sticky-left bg-white z-[15]">
+                                                        <div className="font-bold text-slate-600 whitespace-nowrap text-xs md:text-sm">{new Date(r.match_date).toLocaleDateString(undefined, { month: '2-digit', day: '2-digit' })}</div>
                                                     </td>
                                                 )}
                                                 {itemIdx === 0 && (
@@ -702,13 +709,13 @@ export default function App() {
                     />
                 </div>
 
-                <div className="overflow-x-auto mb-6">
-                    <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
+                <div className="overflow-x-auto mb-6 border rounded-xl shadow-inner bg-slate-50">
+                    <table className="w-full text-left border-collapse text-sm whitespace-nowrap min-w-[1000px]">
                         <thead>
-                            <tr className="bg-slate-900 text-white text-center text-xs">
-                                <th className="p-2 rounded-tl-lg font-bold border-r border-slate-700 w-10">바람</th>
-                                <th className="p-2 font-bold border-r border-slate-700 min-w-[100px]">이름</th>
-                                <th className="p-2 font-bold border-r border-slate-700 min-w-[100px]">최종 점수</th>
+                            <tr className="bg-slate-900 text-white text-center text-xs sticky-top">
+                                <th className="p-2 font-bold border-r border-slate-700 w-10 sticky-left bg-slate-900 z-[31]">바람</th>
+                                <th className="p-2 font-bold border-r border-slate-700 min-w-[120px]">이름</th>
+                                <th className="p-2 font-bold border-r border-slate-700 min-w-[120px]">최종 점수</th>
                                 <th className="p-2 font-bold border-r border-slate-700 text-orange-400 w-12">순위</th>
                                 <th className="p-2 font-bold border-r border-slate-700 text-orange-400 w-12">우마</th>
                                 <th className="p-1 font-bold border-r border-slate-700 w-10 text-[11px]">만관</th>
@@ -717,13 +724,13 @@ export default function App() {
                                 <th className="p-1 font-bold border-r border-slate-700 text-orange-400 w-10 text-[11px]">삼배만</th>
                                 <th className="p-1 font-bold border-r border-slate-700 text-pink-500 w-10 text-[11px]">역만</th>
                                 <th className="p-1 font-bold border-r border-slate-700 text-pink-600 w-12 text-[11px]">헤아림</th>
-                                <th className="p-1 rounded-tr-lg font-bold text-pink-700 w-14 text-[11px]">더블역만+</th>
+                                <th className="p-1 font-bold text-pink-700 w-14 text-[11px]">더블역만+</th>
                             </tr>
                         </thead>
                         <tbody>
                             {newPlayers.map((p, idx) => (
                                 <tr key={idx} className="border-b transition text-center hover:bg-slate-50 border-slate-100">
-                                    <td className="p-2 font-black text-slate-800 bg-slate-100 border-r border-white">{p.wind}</td>
+                                    <td className="p-2 font-black text-slate-800 bg-slate-100 border-r border-white sticky-left z-20">{p.wind}</td>
                                     <td className="p-1 border-r border-slate-200">
                                         <input
                                             list="player-names"
@@ -822,6 +829,69 @@ export default function App() {
         );
     };
 
+    const renderDailyStats = () => {
+        // Group by match_day
+        const grouped = dailyStats.reduce((acc, current) => {
+            const day = current.match_day;
+            if (!acc[day]) acc[day] = [];
+            acc[day].push(current);
+            return acc;
+        }, {});
+
+        const sortedDays = Object.keys(grouped).sort((a, b) => new Date(b) - new Date(a));
+
+        if (dailyStats.length === 0) return <div className="p-8 text-center text-slate-500">데이터를 불러오는 중이거나 기록이 없습니다.</div>;
+
+        return (
+            <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-slate-800 border-b pb-2 mb-4 italic flex items-center gap-2">
+                    <span>📅</span> 일자별 요약 리포트
+                </h2>
+                {sortedDays.map(day => (
+                    <div key={day} className="bg-white shadow-lg rounded-xl overflow-hidden border border-slate-200 transition-all hover:shadow-xl">
+                        <div className="bg-slate-900 text-white p-4 flex justify-between items-center">
+                            <span className="font-black text-lg">{day} ({new Date(day).toLocaleDateString('ko-KR', { weekday: 'short' })})</span>
+                            <span className="text-xs text-slate-400">총 {new Set(grouped[day].map(p => p.player_name)).size}명 참가</span>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
+                                <thead>
+                                    <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
+                                        <th className="p-3 pl-6 sticky-left bg-slate-50 z-20">이름</th>
+                                        <th className="p-3 text-center">게임수</th>
+                                        <th className="p-3 text-center">총 우마</th>
+                                        <th className="p-3 text-center">평균순위</th>
+                                        <th className="p-3 text-center text-yellow-600">1위</th>
+                                        <th className="p-3 text-center text-slate-400">4위</th>
+                                        <th className="p-3 text-center">최고점</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {grouped[day].map((p, idx) => (
+                                        <tr key={p.player_name} className={`border-b border-slate-50 hover:bg-slate-50 transition ${idx === 0 ? 'bg-orange-50/30' : ''}`}>
+                                            <td className={`p-3 pl-6 font-bold sticky-left z-20 ${idx === 0 ? 'bg-orange-50/30 text-orange-700' : 'bg-white text-slate-800'}`}>
+                                                {idx === 0 && <span className="mr-2">👑</span>}
+                                                {p.player_name}
+                                            </td>
+                                            <td className="p-3 text-center font-medium text-slate-600">{p.total_matches}판</td>
+                                            <td className={`p-3 text-center font-black ${Number(p.total_uma) > 0 ? 'text-green-600' : Number(p.total_uma) < 0 ? 'text-red-500' : 'text-slate-400'}`}>
+                                                {Number(p.total_uma) > 0 ? '+' : ''}{Number(p.total_uma).toFixed(1)}
+                                            </td>
+                                            <td className="p-3 text-center font-bold text-slate-700">{Number(p.avg_rank).toFixed(2)}</td>
+                                            <td className="p-3 text-center font-bold text-yellow-600">{p.rank1_count}회</td>
+                                            <td className="p-3 text-center font-bold text-slate-400">{p.rank4_count}회</td>
+                                            <td className="p-3 text-center text-slate-500 text-xs">{Number(p.max_score).toLocaleString()}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
     if (!authToken) {
         const handleLogin = async (e) => {
             e.preventDefault();
@@ -878,34 +948,58 @@ export default function App() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
+        <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row h-screen">
             {/* Sidebar Navigation */}
-            <aside className="w-full md:w-64 bg-slate-900 text-white flex flex-col shadow-2xl">
-                <div className="p-6 border-b border-slate-700">
-                    <h1 className="text-2xl font-black tracking-tight"><span className="text-orange-500">Mahjong</span> Tracker</h1>
-                    <p className="text-xs text-slate-400 mt-2 font-medium tracking-wider">Aboha Statistics Platform</p>
+            <aside className="w-full md:w-64 bg-slate-900 text-white flex flex-col shadow-2xl shrink-0 z-40">
+                <div className="p-4 md:p-6 border-b border-slate-700 flex justify-between items-center md:block">
+                    <div>
+                        <h1 className="text-xl md:text-2xl font-black tracking-tight flex items-center gap-2">
+                            <span className="text-orange-500">🀄</span>
+                            <span className="md:hidden lg:inline">Mahjong Tracker</span>
+                            <span className="hidden md:inline lg:hidden">MT</span>
+                        </h1>
+                        <p className="text-[10px] text-slate-400 mt-0.5 md:mt-2 font-medium tracking-wider">Aboha Statistics</p>
+                    </div>
+
+                    <button
+                        onClick={() => setIsMenuOpen(!isMenuOpen)}
+                        className="md:hidden p-2 text-slate-400 hover:text-white"
+                    >
+                        {isMenuOpen ? '✕' : '☰'}
+                    </button>
                 </div>
-                <nav className="flex-1 p-4 space-y-2">
+
+                <nav className={`${isMenuOpen ? 'flex' : 'hidden'} md:flex flex-col flex-1 p-3 md:p-4 space-y-1 md:space-y-2 overflow-y-auto no-scrollbar`}>
                     {[
-                        ...(userRole === 'admin' ? [{ id: 'new-record', label: '기록 입력하기' }] : []),
-                        { id: 'records', label: '개별 기록' },
-                        { id: 'stats', label: '전체 통계' },
-                        { id: 'dashboard', label: '명예의 전당' },
-                        { id: 'rival', label: '라이벌 분석' },
+                        ...(userRole === 'admin' ? [{ id: 'new-record', label: '📝 기록 입력하기' }] : []),
+                        { id: 'records', label: '📊 개별 기록' },
+                        { id: 'daily', label: '🏠 일일 성적' },
+                        { id: 'stats', label: '📈 전체 통계' },
+                        { id: 'dashboard', label: '🏛️ 명예의 전당' },
+                        { id: 'rival', label: '⚔️ 라이벌 분석' },
                     ].map(tab => (
                         <button
                             key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`w-full text-left px-5 py-4 rounded-xl font-bold transition-all duration-200 ${activeTab === tab.id
+                            onClick={() => {
+                                setActiveTab(tab.id);
+                                setIsMenuOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-3 md:px-5 md:py-4 rounded-xl font-bold transition-all duration-200 ${activeTab === tab.id
                                 ? 'bg-orange-500 text-white shadow-md shadow-orange-500/30'
-                                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                                 }`}
                         >
-                            {tab.label}
+                            <span className="text-sm md:text-base">{tab.label}</span>
                         </button>
                     ))}
 
-                    <div className="pt-8">
+                    <div className="pt-4 md:pt-8 mt-auto border-t border-slate-800 md:border-t-0">
+                        {userRole === 'admin' && (
+                            <div className="px-4 md:px-5 mb-2 text-[10px] text-slate-500 font-medium hidden md:flex items-center gap-1.5 opacity-80 border-l border-slate-700 ml-5">
+                                <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse"></span>
+                                <span>신규멤버추가: 기록 입력 시 이름을 직접 기입</span>
+                            </div>
+                        )}
                         <button
                             onClick={() => {
                                 setAuthToken(null);
@@ -913,9 +1007,9 @@ export default function App() {
                                 localStorage.removeItem('mahjong_token');
                                 localStorage.removeItem('mahjong_role');
                             }}
-                            className="w-full text-left px-5 py-4 rounded-xl font-bold transition-all duration-200 text-red-400 hover:bg-red-500/10 hover:text-red-300 flex items-center gap-2"
+                            className="w-full text-left px-4 py-3 md:px-5 md:py-4 rounded-xl font-bold transition-all duration-200 text-red-500 hover:bg-red-500/10 hover:text-red-400 flex items-center gap-2"
                         >
-                            <span>👋</span> 로그아웃
+                            <span className="text-sm md:text-base">👋 로그아웃</span>
                         </button>
                     </div>
                 </nav>
@@ -925,8 +1019,18 @@ export default function App() {
             <main className="flex-1 p-6 md:p-8 lg:p-10 overflow-y-auto">
                 <div className="max-w-6xl mx-auto">
                     {/* Header Controls */}
-                    <div className="flex justify-end mb-6">
-                        <div className="inline-flex bg-white rounded-lg p-1 shadow-sm border border-slate-200">
+                    <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                        <div className="w-full md:w-auto">
+                            <button
+                                onClick={() => {
+                                    window.open(`${API_BASE}/export-excel`, '_blank');
+                                }}
+                                className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-bold shadow-md transition-all active:scale-95 text-sm w-full md:w-auto"
+                            >
+                                <span>📥</span> 엑셀 백업 다운로드
+                            </button>
+                        </div>
+                        <div className="inline-flex bg-white rounded-lg p-1 shadow-sm border border-slate-200 w-full md:w-auto overflow-x-auto no-scrollbar">
                             {['all', '2025', '2026'].map(year => (
                                 <button
                                     key={year}
@@ -940,6 +1044,7 @@ export default function App() {
                     </div>
 
                     {activeTab === 'dashboard' && renderDashboard()}
+                    {activeTab === 'daily' && renderDailyStats()}
                     {activeTab === 'stats' && renderStats()}
                     {activeTab === 'rival' && renderRival()}
                     {activeTab === 'records' && renderRecords()}
