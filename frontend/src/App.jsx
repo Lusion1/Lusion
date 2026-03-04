@@ -13,6 +13,8 @@ export default function App() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [stats, setStats] = useState([]);
     const [dailyStats, setDailyStats] = useState([]);
+    const [players, setPlayers] = useState([]);
+    const [newPlayerName, setNewPlayerName] = useState('');
 
     // Rival comparison state
     const [p1, setP1] = useState('');
@@ -59,6 +61,11 @@ export default function App() {
             .then(res => res.json())
             .then(data => setDailyStats(data))
             .catch(err => console.error(err));
+
+        fetch(`${API_BASE}/players`)
+            .then(res => res.json())
+            .then(data => setPlayers(data))
+            .catch(err => console.error(err));
     }, [globalYear]);
 
     const handleRivalCompare = () => {
@@ -96,6 +103,14 @@ export default function App() {
         const parsed = newPlayers.map(p => ({ ...p, parsedScore: parseInt(p.score) }));
         if (parsed.some(p => isNaN(p.parsedScore) || !p.name)) {
             alert('모든 플레이어의 이름과 점수를 올바르게 입력해주세요.');
+            return;
+        }
+
+        // Validate names against registered players
+        const registeredNames = new Set(players.map(p => p.name));
+        const unregistered = parsed.filter(p => !registeredNames.has(p.name));
+        if (unregistered.length > 0) {
+            alert(`등록되지 않은 멤버가 있습니다: ${unregistered.map(p => p.name).join(', ')}\n'멤버 관리' 탭에서 먼저 등록해주세요.`);
             return;
         }
 
@@ -682,10 +697,57 @@ export default function App() {
         );
     };
 
+    const handleAddPlayer = async () => {
+        if (!newPlayerName.trim()) return;
+        try {
+            const res = await fetch(`${API_BASE}/players`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({ name: newPlayerName })
+            });
+            if (res.ok) {
+                setNewPlayerName('');
+                const pRes = await fetch(`${API_BASE}/players`);
+                const pData = await pRes.json();
+                setPlayers(pData);
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    const renderMemberAdmin = () => (
+        <div className="bg-white shadow-lg rounded-xl p-6">
+            <h2 className="text-2xl font-bold text-slate-800 mb-6 border-b pb-2">👥 멤버 관리 (Admin)</h2>
+            <div className="flex gap-2 mb-8">
+                <input
+                    type="text"
+                    value={newPlayerName}
+                    onChange={(e) => setNewPlayerName(e.target.value)}
+                    placeholder="신규 멤버 이름 입력..."
+                    className="flex-1 border-2 border-slate-200 p-3 rounded-lg focus:border-orange-500 outline-none"
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddPlayer()}
+                />
+                <button
+                    onClick={handleAddPlayer}
+                    className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 py-3 rounded-lg transition"
+                >
+                    멤버 추가
+                </button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                {players.map(p => (
+                    <div key={p.id} className="bg-slate-50 border border-slate-200 p-3 rounded-lg text-center font-bold text-slate-700">
+                        {p.name}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
     const renderNewRecord = () => {
         const totalScore = newPlayers.reduce((sum, p) => sum + (parseInt(p.score) || 0), 0);
-        const uniqueNames = [...new Set(stats.map(s => s.player_name))];
-
         return (
             <div className="bg-white shadow-lg rounded-xl p-6">
                 <div className="flex justify-between items-center border-b pb-2 mb-6">
@@ -781,7 +843,7 @@ export default function App() {
                     </table>
 
                     <datalist id="player-names">
-                        {uniqueNames.map(name => <option key={name} value={name} />)}
+                        {players.map(p => <option key={p.id} value={p.name} />)}
                     </datalist>
                 </div>
 
@@ -971,7 +1033,10 @@ export default function App() {
 
                 <nav className={`${isMenuOpen ? 'flex' : 'hidden'} md:flex flex-col flex-1 p-3 md:p-4 space-y-1 md:space-y-2 overflow-y-auto no-scrollbar`}>
                     {[
-                        ...(userRole === 'admin' ? [{ id: 'new-record', label: '📝 기록 입력하기' }] : []),
+                        ...(userRole === 'admin' ? [
+                            { id: 'new-record', label: '📝 기록 입력하기' },
+                            { id: 'member-admin', label: '👥 멤버 관리' }
+                        ] : []),
                         { id: 'records', label: '📊 개별 기록' },
                         { id: 'daily', label: '🏠 일일 성적' },
                         { id: 'stats', label: '📈 전체 통계' },
@@ -995,9 +1060,9 @@ export default function App() {
 
                     <div className="pt-4 md:pt-8 mt-auto border-t border-slate-800 md:border-t-0">
                         {userRole === 'admin' && (
-                            <div className="px-4 md:px-5 mb-2 text-[10px] text-slate-500 font-medium hidden md:flex items-center gap-1.5 opacity-80 border-l border-slate-700 ml-5">
-                                <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse"></span>
-                                <span>신규멤버추가: 기록 입력 시 이름을 직접 기입</span>
+                            <div className="px-4 md:px-5 mb-2 text-[10px] text-slate-500 font-medium hidden md:flex items-center gap-1.5 opacity-80 border-l border-slate-700 ml-5 text-balance">
+                                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                                <span>참고: 신규 멤버는 '멤버 관리'에서 등록 후 기록 입력을 진행해주세요.</span>
                             </div>
                         )}
                         <button
@@ -1049,6 +1114,7 @@ export default function App() {
                     {activeTab === 'rival' && renderRival()}
                     {activeTab === 'records' && renderRecords()}
                     {activeTab === 'new-record' && renderNewRecord()}
+                    {activeTab === 'member-admin' && renderMemberAdmin()}
                 </div>
             </main>
         </div>

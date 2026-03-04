@@ -13,26 +13,70 @@ const pool = new Pool({
     : false
 });
 
-// DB가 없을 때를 대비해 서버가 켜질 때 기본 테이블을 자동 생성합니다.
-pool.query(`
-  CREATE TABLE IF NOT EXISTS match_results (
-      id SERIAL PRIMARY KEY,
-      match_date TIMESTAMP,
-      round INT,
-      wind VARCHAR(10),
-      player_name VARCHAR(50),
-      final_score INT,
-      rank INT,
-      uma FLOAT,
-      mangan INT,
-      haneman INT,
-      baiman INT,
-      sanbaiman INT,
-      yakuman INT,
-      kazoeyakuman INT,
-      doubleyakuman INT
-  );
-`).catch(err => console.error("Table creation error:", err));
+// DB 테이블 자동 생성 및 초기 데이터 설정
+const initDB = async () => {
+  try {
+    // 1. 경기 결과 테이블
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS match_results (
+          id SERIAL PRIMARY KEY,
+          match_date TIMESTAMP,
+          round INT,
+          wind VARCHAR(10),
+          player_name VARCHAR(50),
+          final_score INT,
+          rank INT,
+          uma FLOAT,
+          mangan INT,
+          haneman INT,
+          baiman INT,
+          sanbaiman INT,
+          yakuman INT,
+          kazoeyakuman INT,
+          doubleyakuman INT
+      );
+    `);
+
+    // 2. 플레이어 테이블 (신규 멤버 관리용)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS players (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(50) UNIQUE NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 3. 기존 기록 -> 플레이어 테이블 마이그레이션
+    await pool.query(`
+      INSERT INTO players (name)
+      SELECT DISTINCT player_name FROM match_results
+      ON CONFLICT (name) DO NOTHING;
+    `);
+
+    console.log("Database initialized successfully.");
+  } catch (err) {
+    console.error("Database initialization error:", err);
+  }
+};
+
+initDB();
+
+app.get('/api/players', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM players ORDER BY name ASC');
+    res.json(result.rows);
+  } catch (err) { res.status(500).send(err.toString()); }
+});
+
+app.post('/api/players', checkAuth, checkAdmin, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || name.trim() === '') return res.status(400).send("Name is required");
+
+    await pool.query('INSERT INTO players (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [name.trim()]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).send(err.toString()); }
+});
 
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'mahjong_secret_key_123';
