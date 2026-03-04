@@ -607,13 +607,18 @@ export default function App() {
                     />
                 </div>
 
+                <div className="flex items-center gap-2 mb-4 bg-orange-50 p-3 rounded-lg border border-orange-100 w-fit">
+                    <span className="text-orange-500 font-bold">🔥</span>
+                    <span className="text-slate-600 text-xs font-bold">표시는 '만관 이상' 기록을 의미합니다.</span>
+                </div>
+
                 <table className="w-full text-left border-collapse text-sm">
                     <thead>
                         <tr className="bg-slate-900 text-white sticky-top">
-                            <th className="p-3 text-center border-r border-slate-700 sticky-left bg-slate-900 z-[31]">날짜</th>
+                            <th className="p-3 text-center border-r border-slate-700">날짜</th>
                             <th className="p-3 text-center border-r border-slate-700">라운드</th>
                             <th className="p-3 text-center">바람</th>
-                            <th className="p-3">이름</th>
+                            <th className="p-3 min-w-[70px] whitespace-nowrap">이름</th>
                             <th className="p-3">순위</th>
                             <th className="p-3">점수</th>
                             <th className="p-3">우마</th>
@@ -632,7 +637,7 @@ export default function App() {
                                         return (
                                             <tr key={r.id} className={`${bgClass} hover:bg-orange-100 transition border-b border-slate-100`}>
                                                 {itemIdx === 0 && (
-                                                    <td rowSpan={group.length} className="p-3 align-middle text-center border-r border-slate-200 sticky-left bg-white z-[15]">
+                                                    <td rowSpan={group.length} className="p-3 align-middle text-center border-r border-slate-200 bg-white">
                                                         <div className="font-bold text-slate-600 whitespace-nowrap text-xs md:text-sm">{new Date(r.match_date).toLocaleDateString(undefined, { month: '2-digit', day: '2-digit' })}</div>
                                                     </td>
                                                 )}
@@ -658,14 +663,14 @@ export default function App() {
                                                     </td>
                                                 )}
                                                 <td className="p-3 text-center font-black text-slate-500">{r.wind}</td>
-                                                <td className="p-3 font-bold text-slate-800">{r.player_name}</td>
+                                                <td className="p-3 font-bold text-slate-800 whitespace-nowrap">{r.player_name}</td>
                                                 <td className={`p-3 font-black ${rankColor}`}>{r.rank}</td>
                                                 <td className="p-3">{r.final_score.toLocaleString()}</td>
                                                 <td className={`p-3 ${r.uma > 0 ? 'text-green-600 font-bold' : 'text-red-500 font-medium'}`}>{Number(r.uma).toFixed(1)}</td>
                                                 <td className="p-3">
                                                     {isManganPlus ? (
-                                                        <span className="inline-flex items-center gap-1 bg-orange-500 text-white px-2 py-1 text-xs rounded-md font-bold shadow-sm">
-                                                            <span>🔥</span>만관 이상
+                                                        <span className="inline-flex items-center justify-center w-8 h-8 md:w-10 md:h-10 bg-orange-100 text-orange-600 rounded-full font-bold shadow-inner">
+                                                            <span>🔥</span>
                                                         </span>
                                                     ) : <span className="text-slate-300">-</span>}
                                                 </td>
@@ -683,28 +688,30 @@ export default function App() {
                 </table>
 
                 {/* Pagination Controls */}
-                {totalPages > 1 && (
-                    <div className="mt-6 flex justify-center items-center gap-2">
-                        <button
-                            disabled={currentPage === 1}
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            className="px-4 py-2 border rounded font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition"
-                        >
-                            이전
-                        </button>
-                        <span className="text-slate-600 font-bold">
-                            {currentPage} / {totalPages} 페이지
-                        </span>
-                        <button
-                            disabled={currentPage === totalPages}
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            className="px-4 py-2 border rounded font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition"
-                        >
-                            다음
-                        </button>
-                    </div>
-                )}
-            </div>
+                {
+                    totalPages > 1 && (
+                        <div className="mt-6 flex justify-center items-center gap-2">
+                            <button
+                                disabled={currentPage === 1}
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                className="px-4 py-2 border rounded font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition"
+                            >
+                                이전
+                            </button>
+                            <span className="text-slate-600 font-bold">
+                                {currentPage} / {totalPages} 페이지
+                            </span>
+                            <button
+                                disabled={currentPage === totalPages}
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                className="px-4 py-2 border rounded font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition"
+                            >
+                                다음
+                            </button>
+                        </div>
+                    )
+                }
+            </div >
         );
     };
 
@@ -817,8 +824,8 @@ export default function App() {
                         <thead>
                             <tr className="bg-slate-900 text-white text-center text-xs sticky-top">
                                 <th className="p-2 font-bold border-r border-slate-700 w-10 sticky-left bg-slate-900 z-[31]">바람</th>
-                                <th className="p-2 font-bold border-r border-slate-700 min-w-[120px]">이름</th>
-                                <th className="p-2 font-bold border-r border-slate-700 min-w-[120px]">최종 점수</th>
+                                <th className="p-2 font-bold border-r border-slate-700 min-w-[80px]">이름</th>
+                                <th className="p-2 font-bold border-r border-slate-700 min-w-[80px]">최종 점수</th>
                                 <th className="p-2 font-bold border-r border-slate-700 text-orange-400 w-12">순위</th>
                                 <th className="p-2 font-bold border-r border-slate-700 text-orange-400 w-12">우마</th>
                                 <th className="p-1 font-bold border-r border-slate-700 w-10 text-[11px]">만관</th>
@@ -1087,14 +1094,16 @@ export default function App() {
                 <nav className={`${isMenuOpen ? 'flex' : 'hidden'} md:flex flex-col flex-1 p-3 md:p-4 space-y-1 md:space-y-2 overflow-y-auto no-scrollbar`}>
                     {[
                         ...(userRole === 'admin' ? [
-                            { id: 'new-record', label: '📝 기록 입력하기' },
-                            { id: 'member-admin', label: '👥 멤버 관리' }
+                            { id: 'new-record', label: '📝 기록 입력하기' }
                         ] : []),
                         { id: 'records', label: '📊 개별 기록' },
                         { id: 'daily', label: '🏠 일일 성적' },
                         { id: 'stats', label: '📈 전체 통계' },
                         { id: 'dashboard', label: '🏛️ 명예의 전당' },
                         { id: 'rival', label: '⚔️ 라이벌 분석' },
+                        ...(userRole === 'admin' ? [
+                            { id: 'member-admin', label: '👥 멤버 관리' }
+                        ] : []),
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -1112,10 +1121,10 @@ export default function App() {
                     ))}
 
                     <div className="pt-4 md:pt-8 mt-auto border-t border-slate-800 md:border-t-0">
-                        {userRole === 'admin' && (
+                        {userRole === 'admin' && activeTab === 'new-record' && (
                             <div className="px-4 md:px-5 mb-2 text-[10px] text-slate-500 font-medium hidden md:flex items-center gap-1.5 opacity-80 border-l border-slate-700 ml-5 text-balance">
                                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                                <span>참고: 신규 멤버는 '멤버 관리'에서 등록 후 기록 입력을 진행해주세요.</span>
+                                <span>참고: 신규 멤버는 가장 아래 '멤버 관리'에서 등록 후 진행해주세요.</span>
                             </div>
                         )}
                         <button
