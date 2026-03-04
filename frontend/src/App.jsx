@@ -618,7 +618,7 @@ export default function App() {
                             <th className="p-2 text-center border-r border-slate-700 w-16">날짜</th>
                             <th className="p-2 text-center border-r border-slate-700 w-12">라운드</th>
                             <th className="p-1 text-center w-8">바람</th>
-                            <th className="p-2 min-w-[60px] whitespace-nowrap">이름</th>
+                            <th className="p-2 w-16 whitespace-nowrap">이름</th>
                             <th className="p-2 w-8">순위</th>
                             <th className="p-2 w-16">점수</th>
                             <th className="p-2 w-12">우마</th>
@@ -638,7 +638,7 @@ export default function App() {
                                             <tr key={r.id} className={`${bgClass} hover:bg-orange-100 transition border-b border-slate-100`}>
                                                 {itemIdx === 0 && (
                                                     <td rowSpan={group.length} className="p-1 align-middle text-center border-r border-slate-200 bg-white">
-                                                        <div className="font-bold text-slate-600 whitespace-nowrap text-xs md:text-sm">{new Date(r.match_date).toLocaleDateString(undefined, { month: '2-digit', day: '2-digit' })}</div>
+                                                        <div className="font-bold text-slate-600 whitespace-nowrap text-sm md:text-base">{new Date(r.match_date).toLocaleDateString(undefined, { month: '2-digit', day: '2-digit' })}</div>
                                                     </td>
                                                 )}
                                                 {itemIdx === 0 && (
@@ -824,8 +824,8 @@ export default function App() {
                         <thead>
                             <tr className="bg-slate-900 text-white text-center text-xs sticky-top">
                                 <th className="p-1 font-bold border-r border-slate-700 w-8 sticky-left bg-slate-900 z-[31]">바람</th>
-                                <th className="p-1 font-bold border-r border-slate-700 w-16">이름</th>
-                                <th className="p-1 font-bold border-r border-slate-700 w-20">최종 점수</th>
+                                <th className="p-1 font-bold border-r border-slate-700 w-12">이름</th>
+                                <th className="p-1 font-bold border-r border-slate-700 w-16">최종 점수</th>
                                 <th className="p-1 font-bold border-r border-slate-700 text-orange-400 w-8">순위</th>
                                 <th className="p-1 font-bold border-r border-slate-700 text-orange-400 w-10">우마</th>
                                 <th className="p-1 font-bold border-r border-slate-700 w-10 text-[10px]">만관</th>
@@ -837,7 +837,7 @@ export default function App() {
                                 <th className="p-1 font-bold text-pink-700 w-10 text-[10px]">더블+</th>
                             </tr>
                         </thead>
-                        筋                        <tbody>
+                        <tbody>
                             {newPlayers.map((p, idx) => (
                                 <tr key={idx} className="border-b transition text-center hover:bg-slate-50 border-slate-100">
                                     <td className="p-2 font-black text-slate-800 bg-slate-100 border-r border-white sticky-left z-20">{p.wind}</td>
