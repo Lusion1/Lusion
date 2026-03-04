@@ -236,20 +236,22 @@ export default function App() {
 
                 <table className="w-full text-center border-collapse text-sm whitespace-nowrap">
                     <thead>
-                        <tr className="bg-slate-900 text-white border-b-2 border-slate-700 sticky-top">
-                            <th className="p-3 border-r border-slate-700 rounded-tl-lg font-bold sticky-left bg-slate-900 z-[31]">타이틀</th>
-                            <th className="p-3 border-r border-slate-700 font-bold">항목</th>
-                            <th colSpan="2" className="p-3 border-r border-slate-700 font-bold text-yellow-500">🥇 1위</th>
-                            <th colSpan="2" className="p-3 border-r border-slate-700 font-bold text-slate-400">🥈 2위</th>
-                            <th colSpan="2" className="p-3 rounded-tr-lg font-bold text-orange-400">🥉 3위</th>
-                        </tr>
+                        <thead>
+                            <tr className="bg-slate-900 text-white border-b-2 border-slate-700 sticky-top">
+                                <th className="p-3 border-r border-slate-700 rounded-tl-lg font-bold">타이틀</th>
+                                <th className="p-3 border-r border-slate-700 font-bold">항목</th>
+                                <th colSpan="2" className="p-3 border-r border-slate-700 font-bold text-yellow-500">🥇 1위</th>
+                                <th colSpan="2" className="p-3 border-r border-slate-700 font-bold text-slate-400">🥈 2위</th>
+                                <th colSpan="2" className="p-3 rounded-tr-lg font-bold text-orange-400">🥉 3위</th>
+                            </tr>
+                        </thead>
                     </thead>
                     <tbody>
                         {dashboardCategories.map((cat, idx) => {
                             const top3 = getSortedForCategory(cat.key, cat.sort);
                             return (
                                 <tr key={idx} className="border-b transition hover:bg-slate-50 border-slate-100">
-                                    <td className="p-3 font-bold text-slate-800 border-r border-slate-100 bg-slate-50 text-left sticky-left z-20">{cat.title}</td>
+                                    <td className="p-3 font-bold text-slate-800 border-r border-slate-100 bg-slate-50 text-left">{cat.title}</td>
                                     <td className="p-3 font-medium text-slate-600 border-r border-slate-100">{cat.item}</td>
 
                                     <td className="p-3 font-black text-slate-800 border-r border-slate-100">{top3[0]?.player_name || '-'}</td>
@@ -473,9 +475,9 @@ export default function App() {
                             <h3 className="text-lg font-bold mb-4 text-slate-800 border-b pb-2">경기 목록</h3>
                             <table className="w-full text-left border-collapse text-sm">
                                 <thead>
-                                    <tr className="bg-slate-900 text-white">
-                                        <th className="p-3 rounded-tl-lg">날짜</th>
-                                        <th className="p-3">라운드</th>
+                                    <tr className="bg-slate-900 text-white font-bold">
+                                        <th className="p-3 rounded-tl-lg whitespace-nowrap min-w-[100px]">날짜</th>
+                                        <th className="p-3 whitespace-nowrap min-w-[70px]">라운드</th>
                                         <th className="p-3 text-center">순위/점수 ({p1})</th>
                                         <th className="p-3 text-center rounded-tr-lg">순위/점수 ({p2})</th>
                                     </tr>
@@ -483,8 +485,8 @@ export default function App() {
                                 <tbody>
                                     {rivalData.matches.map((m, idx) => (
                                         <tr key={idx} className="border-b hover:bg-slate-50 transition border-slate-100">
-                                            <td className="p-3">{new Date(m.match_date).toLocaleDateString()}</td>
-                                            <td className="p-3">{m.round}</td>
+                                            <td className="p-3 whitespace-nowrap text-slate-600">{new Date(m.match_date).toLocaleDateString()}</td>
+                                            <td className="p-3 font-bold text-slate-800 whitespace-nowrap">R{m.round}</td>
                                             <td className={`p-3 text-center font-bold ${m.rank1 === 1 ? 'text-yellow-600' : m.rank1 === 4 ? 'text-slate-400' : 'text-slate-700'}`}>
                                                 {m.rank1}위 / {m.score1}점
                                             </td>
@@ -1182,6 +1184,20 @@ export default function App() {
                     {activeTab === 'records' && renderRecords()}
                     {activeTab === 'new-record' && renderNewRecord()}
                     {activeTab === 'member-admin' && renderMemberAdmin()}
+
+                    {/* Player Dropdown Data */}
+                    <datalist id="player-names">
+                        {[...players]
+                            .sort((a, b) => {
+                                const sA = stats.find(s => s.player_name === a.name);
+                                const sB = stats.find(s => s.player_name === b.name);
+                                const matchesA = sA ? sA.total_matches : 0;
+                                const matchesB = sB ? sB.total_matches : 0;
+                                return matchesB - matchesA;
+                            })
+                            .map(p => <option key={p.id} value={p.name} />)
+                        }
+                    </datalist>
                 </div>
             </main>
         </div>
