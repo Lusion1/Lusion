@@ -822,19 +822,19 @@ export default function App() {
                 <div className="overflow-x-auto mb-6 border rounded-xl shadow-inner bg-slate-50">
                     <table className="w-full text-left border-collapse text-sm min-w-[650px] table-fixed">
                         <thead>
-                            <tr className="bg-slate-900 text-white text-center text-xs sticky-top">
-                                <th className="p-1 font-bold border-r border-slate-700 w-8 sticky-left bg-slate-900 z-[31]">바람</th>
-                                <th className="p-1 font-bold border-r border-slate-700 w-12">이름</th>
-                                <th className="p-1 font-bold border-r border-slate-700 w-16">최종 점수</th>
-                                <th className="p-1 font-bold border-r border-slate-700 text-orange-400 w-8">순위</th>
-                                <th className="p-1 font-bold border-r border-slate-700 text-orange-400 w-10">우마</th>
-                                <th className="p-1 font-bold border-r border-slate-700 w-10 text-[10px]">만관</th>
-                                <th className="p-1 font-bold border-r border-slate-700 w-10 text-[10px]">하네만</th>
-                                <th className="p-1 font-bold border-r border-slate-700 w-10 text-[10px]">배만</th>
-                                <th className="p-1 font-bold border-r border-slate-700 text-orange-400 w-10 text-[10px]">삼배만</th>
-                                <th className="p-1 font-bold border-r border-slate-700 text-pink-500 w-10 text-[10px]">역만</th>
-                                <th className="p-1 font-bold border-r border-slate-700 text-pink-600 w-10 text-[10px]">헤아림</th>
-                                <th className="p-1 font-bold text-pink-700 w-10 text-[10px]">더블+</th>
+                            <tr className="bg-slate-900 text-white text-center text-sm sticky-top">
+                                <th className="p-2 font-black border-r border-slate-700 w-10 sticky-left bg-slate-900 z-[31] whitespace-nowrap">바람</th>
+                                <th className="p-2 font-black border-r border-slate-700 w-24 whitespace-nowrap">이름</th>
+                                <th className="p-2 font-black border-r border-slate-700 w-28 whitespace-nowrap">최종 점수</th>
+                                <th className="p-2 font-black border-r border-slate-700 text-orange-400 w-10 whitespace-nowrap">순위</th>
+                                <th className="p-2 font-black border-r border-slate-700 text-orange-400 w-12 whitespace-nowrap">우마</th>
+                                <th className="p-2 font-black border-r border-slate-700 w-12 text-[11px] whitespace-nowrap">만관</th>
+                                <th className="p-2 font-black border-r border-slate-700 w-12 text-[11px] whitespace-nowrap">하네만</th>
+                                <th className="p-2 font-black border-r border-slate-700 w-12 text-[11px] whitespace-nowrap">배만</th>
+                                <th className="p-2 font-black border-r border-slate-700 text-orange-400 w-12 text-[11px] whitespace-nowrap">삼배만</th>
+                                <th className="p-2 font-black border-r border-slate-700 text-pink-500 w-12 text-[11px] whitespace-nowrap">역만</th>
+                                <th className="p-2 font-black border-r border-slate-700 text-pink-600 w-12 text-[11px] whitespace-nowrap">헤아림</th>
+                                <th className="p-2 font-black text-pink-700 w-12 text-[11px] whitespace-nowrap">더블+</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -868,12 +868,17 @@ export default function App() {
                                     </td>
                                     <td className="p-1 border-r border-slate-200">
                                         <input
-                                            type="number"
+                                            type="text"
+                                            inputMode="text"
                                             value={p.score}
                                             onChange={(e) => {
-                                                const updated = [...newPlayers];
-                                                updated[idx].score = e.target.value;
-                                                setNewPlayers(calcRankAndUma(updated));
+                                                const val = e.target.value;
+                                                // Allow empty string, single minus sign, or a number
+                                                if (val === '' || val === '-' || !isNaN(Number(val))) {
+                                                    const updated = [...newPlayers];
+                                                    updated[idx].score = val;
+                                                    setNewPlayers(calcRankAndUma(updated));
+                                                }
                                             }}
                                             placeholder="점수 (예: 25000)"
                                             className="w-full p-2 text-sm border border-slate-300 rounded focus:border-orange-500 focus:outline-none text-center font-bold"
