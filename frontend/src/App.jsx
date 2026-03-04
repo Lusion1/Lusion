@@ -638,25 +638,25 @@ export default function App() {
                                             <tr key={r.id} className={`${bgClass} hover:bg-orange-100 transition border-b border-slate-100`}>
                                                 {itemIdx === 0 && (
                                                     <td rowSpan={group.length} className="p-3 align-middle text-center border-r border-slate-200 bg-white">
-                                                        <div className="font-bold text-slate-600 whitespace-nowrap text-xs md:text-sm">{new Date(r.match_date).toLocaleDateString(undefined, { month: '2-digit', day: '2-digit' })}</div>
+                                                        <div className="font-bold text-slate-600 whitespace-nowrap text-sm md:text-base">{new Date(r.match_date).toLocaleDateString(undefined, { month: '2-digit', day: '2-digit' })}</div>
                                                     </td>
                                                 )}
                                                 {itemIdx === 0 && (
-                                                    <td rowSpan={group.length} className="p-3 align-middle text-center border-r border-slate-200 bg-slate-100">
-                                                        <div className="font-black text-slate-800 text-xl whitespace-nowrap mb-2">R{r.round}</div>
+                                                    <td rowSpan={group.length} className="p-2 align-middle text-center border-r border-slate-200 bg-slate-100 min-w-[70px]">
+                                                        <div className="font-black text-slate-800 text-lg whitespace-nowrap mb-1">R{r.round}</div>
                                                         {userRole === 'admin' && (
-                                                            <div className="flex flex-col gap-1 items-center px-2">
+                                                            <div className="flex flex-row gap-1 justify-center px-1">
                                                                 <button
                                                                     onClick={() => handleEditRound(group)}
-                                                                    className="w-full px-3 py-1 bg-white border border-slate-300 text-slate-600 rounded text-xs font-bold hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 transition-colors shadow-sm"
+                                                                    className="px-1.5 py-1 bg-white border border-slate-300 text-slate-600 rounded text-[9px] md:text-xs font-bold hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 transition-colors shadow-sm whitespace-nowrap"
                                                                 >
-                                                                    ✍️ 수정
+                                                                    ✍️수정
                                                                 </button>
                                                                 <button
                                                                     onClick={() => handleDeleteRound(r.round)}
-                                                                    className="w-full px-3 py-1 bg-white border border-red-200 text-red-500 rounded text-xs font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-400 transition-colors shadow-sm"
+                                                                    className="px-1.5 py-1 bg-white border border-red-200 text-red-500 rounded text-[9px] md:text-xs font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-400 transition-colors shadow-sm whitespace-nowrap"
                                                                 >
-                                                                    🗑️ 삭제
+                                                                    🗑️삭제
                                                                 </button>
                                                             </div>
                                                         )}
@@ -824,8 +824,8 @@ export default function App() {
                         <thead>
                             <tr className="bg-slate-900 text-white text-center text-xs sticky-top">
                                 <th className="p-2 font-bold border-r border-slate-700 w-10 sticky-left bg-slate-900 z-[31]">바람</th>
-                                <th className="p-2 font-bold border-r border-slate-700 min-w-[80px]">이름</th>
-                                <th className="p-2 font-bold border-r border-slate-700 min-w-[80px]">최종 점수</th>
+                                <th className="p-2 font-bold border-r border-slate-700 min-w-[50px]">이름</th>
+                                <th className="p-2 font-bold border-r border-slate-700 min-w-[50px]">최종 점수</th>
                                 <th className="p-2 font-bold border-r border-slate-700 text-orange-400 w-12">순위</th>
                                 <th className="p-2 font-bold border-r border-slate-700 text-orange-400 w-12">우마</th>
                                 <th className="p-1 font-bold border-r border-slate-700 w-10 text-[11px]">만관</th>
