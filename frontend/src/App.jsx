@@ -708,6 +708,22 @@ export default function App() {
         );
     };
 
+    const handleSyncPlayers = async () => {
+        try {
+            const res = await fetch(`${API_BASE}/sync-players`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(`${data.count || 0}명의 멤버가 새롭게 동기화되었습니다.`);
+                const pRes = await fetch(`${API_BASE}/players`);
+                const pData = await pRes.json();
+                setPlayers(pData);
+            }
+        } catch (e) { alert('동기화 실패: ' + e.message); }
+    };
+
     const handleAddPlayer = async () => {
         if (!newPlayerName.trim()) return;
         try {
@@ -730,7 +746,15 @@ export default function App() {
 
     const renderMemberAdmin = () => (
         <div className="bg-white shadow-lg rounded-xl p-6">
-            <h2 className="text-2xl font-bold text-slate-800 mb-6 border-b pb-2">👥 멤버 관리 (Admin)</h2>
+            <div className="flex justify-between items-center mb-6 border-b pb-2">
+                <h2 className="text-2xl font-bold text-slate-800">👥 멤버 관리 (Admin)</h2>
+                <button
+                    onClick={handleSyncPlayers}
+                    className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg font-bold border border-slate-200 transition"
+                >
+                    🔄 기존 기록과 동기화
+                </button>
+            </div>
             <div className="flex gap-2 mb-8">
                 <input
                     type="text"
@@ -754,7 +778,10 @@ export default function App() {
                         {p.name}
                     </div>
                 )) : (
-                    <p className="text-slate-400 italic">등록된 멤버가 없습니다. 위 입력창에서 이름을 입력해 추가해주세요.</p>
+                    <div className="w-full py-8 text-center bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                        <p className="text-slate-400 font-bold mb-1">등록된 멤버가 없습니다.</p>
+                        <p className="text-xs text-slate-500">우측 상단의 [🔄 기존 기록과 동기화] 버튼을 눌러 과거 기록을 불러오세요!</p>
+                    </div>
                 )}
             </div>
         </div>
