@@ -64,9 +64,20 @@ export default function App() {
 
         fetch(`${API_BASE}/players`)
             .then(res => res.json())
-            .then(data => setPlayers(data))
+            .then(data => {
+                console.log('Players fetched:', data);
+                setPlayers(data);
+            })
             .catch(err => console.error(err));
     }, [globalYear]);
+
+    // Fetch players once on mount too
+    useEffect(() => {
+        fetch(`${API_BASE}/players`)
+            .then(res => res.json())
+            .then(data => setPlayers(data))
+            .catch(err => console.error(err));
+    }, []);
 
     const handleRivalCompare = () => {
         if (!p1 || !p2) return;
@@ -736,12 +747,15 @@ export default function App() {
                     멤버 추가
                 </button>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                {players.map(p => (
-                    <div key={p.id} className="bg-slate-50 border border-slate-200 p-3 rounded-lg text-center font-bold text-slate-700">
+            <div className="flex flex-wrap gap-3">
+                {players.length > 0 ? players.map(p => (
+                    <div key={p.id} className="bg-slate-50 border-2 border-slate-200 px-4 py-2 rounded-full font-bold text-slate-700 shadow-sm flex items-center gap-2">
+                        <span className="text-orange-500 text-xs">●</span>
                         {p.name}
                     </div>
-                ))}
+                )) : (
+                    <p className="text-slate-400 italic">등록된 멤버가 없습니다. 위 입력창에서 이름을 입력해 추가해주세요.</p>
+                )}
             </div>
         </div>
     );
@@ -793,14 +807,26 @@ export default function App() {
                             {newPlayers.map((p, idx) => (
                                 <tr key={idx} className="border-b transition text-center hover:bg-slate-50 border-slate-100">
                                     <td className="p-2 font-black text-slate-800 bg-slate-100 border-r border-white sticky-left z-20">{p.wind}</td>
-                                    <td className="p-1 border-r border-slate-200">
+                                    <td className="p-1 border-r border-slate-200" onClick={(e) => {
+                                        // Force list to show on some browsers by clearing if empty
+                                        const input = e.currentTarget.querySelector('input');
+                                        if (input && !input.value) input.focus();
+                                    }}>
                                         <input
                                             list="player-names"
                                             value={p.name}
+                                            autoComplete="off"
                                             onChange={(e) => {
                                                 const updated = [...newPlayers];
                                                 updated[idx].name = e.target.value;
                                                 setNewPlayers(updated);
+                                            }}
+                                            onFocus={(e) => {
+                                                // Trigger dropdown on focus for better UX
+                                                e.target.setAttribute('placeholder', '검색 또는 선택...');
+                                            }}
+                                            onBlur={(e) => {
+                                                e.target.setAttribute('placeholder', '이름');
                                             }}
                                             placeholder="이름"
                                             className="w-full p-2 text-sm border border-slate-300 rounded focus:border-orange-500 focus:outline-none text-center font-bold"
