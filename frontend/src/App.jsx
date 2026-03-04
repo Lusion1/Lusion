@@ -612,17 +612,17 @@ export default function App() {
                     <span className="text-slate-600 text-xs font-bold">표시는 '만관 이상' 기록을 의미합니다.</span>
                 </div>
 
-                <table className="w-full text-left border-collapse text-sm">
+                <table className="w-full text-left border-collapse text-sm min-w-[500px]">
                     <thead>
                         <tr className="bg-slate-900 text-white sticky-top">
-                            <th className="p-3 text-center border-r border-slate-700">날짜</th>
-                            <th className="p-3 text-center border-r border-slate-700">라운드</th>
-                            <th className="p-3 text-center">바람</th>
-                            <th className="p-3 min-w-[70px] whitespace-nowrap">이름</th>
-                            <th className="p-3">순위</th>
-                            <th className="p-3">점수</th>
-                            <th className="p-3">우마</th>
-                            <th className="p-3">특이사항</th>
+                            <th className="p-2 text-center border-r border-slate-700 w-16">날짜</th>
+                            <th className="p-2 text-center border-r border-slate-700 w-12">라운드</th>
+                            <th className="p-1 text-center w-8">바람</th>
+                            <th className="p-2 min-w-[60px] whitespace-nowrap">이름</th>
+                            <th className="p-2 w-8">순위</th>
+                            <th className="p-2 w-16">점수</th>
+                            <th className="p-2 w-12">우마</th>
+                            <th className="p-2 w-12 text-center">특이</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -637,39 +637,39 @@ export default function App() {
                                         return (
                                             <tr key={r.id} className={`${bgClass} hover:bg-orange-100 transition border-b border-slate-100`}>
                                                 {itemIdx === 0 && (
-                                                    <td rowSpan={group.length} className="p-3 align-middle text-center border-r border-slate-200 bg-white">
-                                                        <div className="font-bold text-slate-600 whitespace-nowrap text-sm md:text-base">{new Date(r.match_date).toLocaleDateString(undefined, { month: '2-digit', day: '2-digit' })}</div>
+                                                    <td rowSpan={group.length} className="p-1 align-middle text-center border-r border-slate-200 bg-white">
+                                                        <div className="font-bold text-slate-600 whitespace-nowrap text-xs md:text-sm">{new Date(r.match_date).toLocaleDateString(undefined, { month: '2-digit', day: '2-digit' })}</div>
                                                     </td>
                                                 )}
                                                 {itemIdx === 0 && (
-                                                    <td rowSpan={group.length} className="p-2 align-middle text-center border-r border-slate-200 bg-slate-100 min-w-[70px]">
-                                                        <div className="font-black text-slate-800 text-lg whitespace-nowrap mb-1">R{r.round}</div>
+                                                    <td rowSpan={group.length} className="p-1 align-middle text-center border-r border-slate-200 bg-slate-100 min-w-[50px]">
+                                                        <div className="font-black text-slate-800 text-base whitespace-nowrap mb-2">R{r.round}</div>
                                                         {userRole === 'admin' && (
-                                                            <div className="flex flex-row gap-1 justify-center px-1">
+                                                            <div className="flex flex-col gap-1 items-center px-0.5">
                                                                 <button
                                                                     onClick={() => handleEditRound(group)}
-                                                                    className="px-1.5 py-1 bg-white border border-slate-300 text-slate-600 rounded text-[9px] md:text-xs font-bold hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 transition-colors shadow-sm whitespace-nowrap"
+                                                                    className="w-full py-1 bg-white border border-slate-300 text-slate-600 rounded-[4px] text-[8px] md:text-xs font-bold hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300 transition-colors shadow-sm whitespace-nowrap"
                                                                 >
-                                                                    ✍️수정
+                                                                    수정
                                                                 </button>
                                                                 <button
                                                                     onClick={() => handleDeleteRound(r.round)}
-                                                                    className="px-1.5 py-1 bg-white border border-red-200 text-red-500 rounded text-[9px] md:text-xs font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-400 transition-colors shadow-sm whitespace-nowrap"
+                                                                    className="w-full py-1 bg-white border border-red-200 text-red-500 rounded-[4px] text-[8px] md:text-xs font-bold hover:bg-red-50 hover:text-red-700 hover:border-red-400 transition-colors shadow-sm whitespace-nowrap"
                                                                 >
-                                                                    🗑️삭제
+                                                                    삭제
                                                                 </button>
                                                             </div>
                                                         )}
                                                     </td>
                                                 )}
-                                                <td className="p-3 text-center font-black text-slate-500">{r.wind}</td>
-                                                <td className="p-3 font-bold text-slate-800 whitespace-nowrap">{r.player_name}</td>
-                                                <td className={`p-3 font-black ${rankColor}`}>{r.rank}</td>
-                                                <td className="p-3">{r.final_score.toLocaleString()}</td>
-                                                <td className={`p-3 ${r.uma > 0 ? 'text-green-600 font-bold' : 'text-red-500 font-medium'}`}>{Number(r.uma).toFixed(1)}</td>
-                                                <td className="p-3">
+                                                <td className="p-1 text-center font-black text-slate-500">{r.wind}</td>
+                                                <td className="p-1 font-bold text-slate-800 whitespace-nowrap">{r.player_name}</td>
+                                                <td className={`p-1 font-black ${rankColor}`}>{r.rank}</td>
+                                                <td className="p-1">{r.final_score.toLocaleString()}</td>
+                                                <td className={`p-1 ${r.uma > 0 ? 'text-green-600 font-bold' : 'text-red-500 font-medium'}`}>{Number(r.uma).toFixed(1)}</td>
+                                                <td className="p-1 text-center">
                                                     {isManganPlus ? (
-                                                        <span className="inline-flex items-center justify-center w-8 h-8 md:w-10 md:h-10 bg-orange-100 text-orange-600 rounded-full font-bold shadow-inner">
+                                                        <span className="inline-flex items-center justify-center w-6 h-6 bg-orange-100 text-orange-600 rounded-full font-bold shadow-inner text-[10px]">
                                                             <span>🔥</span>
                                                         </span>
                                                     ) : <span className="text-slate-300">-</span>}
@@ -820,24 +820,24 @@ export default function App() {
                 </div>
 
                 <div className="overflow-x-auto mb-6 border rounded-xl shadow-inner bg-slate-50">
-                    <table className="w-full text-left border-collapse text-sm whitespace-nowrap min-w-[1000px]">
+                    <table className="w-full text-left border-collapse text-sm min-w-[650px] table-fixed">
                         <thead>
                             <tr className="bg-slate-900 text-white text-center text-xs sticky-top">
-                                <th className="p-2 font-bold border-r border-slate-700 w-10 sticky-left bg-slate-900 z-[31]">바람</th>
-                                <th className="p-2 font-bold border-r border-slate-700 min-w-[50px]">이름</th>
-                                <th className="p-2 font-bold border-r border-slate-700 min-w-[50px]">최종 점수</th>
-                                <th className="p-2 font-bold border-r border-slate-700 text-orange-400 w-12">순위</th>
-                                <th className="p-2 font-bold border-r border-slate-700 text-orange-400 w-12">우마</th>
-                                <th className="p-1 font-bold border-r border-slate-700 w-10 text-[11px]">만관</th>
-                                <th className="p-1 font-bold border-r border-slate-700 w-10 text-[11px]">하네만</th>
-                                <th className="p-1 font-bold border-r border-slate-700 w-10 text-[11px]">배만</th>
-                                <th className="p-1 font-bold border-r border-slate-700 text-orange-400 w-10 text-[11px]">삼배만</th>
-                                <th className="p-1 font-bold border-r border-slate-700 text-pink-500 w-10 text-[11px]">역만</th>
-                                <th className="p-1 font-bold border-r border-slate-700 text-pink-600 w-12 text-[11px]">헤아림</th>
-                                <th className="p-1 font-bold text-pink-700 w-14 text-[11px]">더블역만+</th>
+                                <th className="p-1 font-bold border-r border-slate-700 w-8 sticky-left bg-slate-900 z-[31]">바람</th>
+                                <th className="p-1 font-bold border-r border-slate-700 w-16">이름</th>
+                                <th className="p-1 font-bold border-r border-slate-700 w-20">최종 점수</th>
+                                <th className="p-1 font-bold border-r border-slate-700 text-orange-400 w-8">순위</th>
+                                <th className="p-1 font-bold border-r border-slate-700 text-orange-400 w-10">우마</th>
+                                <th className="p-1 font-bold border-r border-slate-700 w-10 text-[10px]">만관</th>
+                                <th className="p-1 font-bold border-r border-slate-700 w-10 text-[10px]">하네만</th>
+                                <th className="p-1 font-bold border-r border-slate-700 w-10 text-[10px]">배만</th>
+                                <th className="p-1 font-bold border-r border-slate-700 text-orange-400 w-10 text-[10px]">삼배만</th>
+                                <th className="p-1 font-bold border-r border-slate-700 text-pink-500 w-10 text-[10px]">역만</th>
+                                <th className="p-1 font-bold border-r border-slate-700 text-pink-600 w-10 text-[10px]">헤아림</th>
+                                <th className="p-1 font-bold text-pink-700 w-10 text-[10px]">더블+</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        筋                        <tbody>
                             {newPlayers.map((p, idx) => (
                                 <tr key={idx} className="border-b transition text-center hover:bg-slate-50 border-slate-100">
                                     <td className="p-2 font-black text-slate-800 bg-slate-100 border-r border-white sticky-left z-20">{p.wind}</td>
