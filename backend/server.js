@@ -7,10 +7,8 @@ app.use(cors());
 app.use(express.json());
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/mahjong',
-  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com')
-    ? { rejectUnauthorized: false }
-    : false
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres.vcilntnhahfrbxpocuyn:8896qwe9zx!@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true',
+  ssl: { rejectUnauthorized: false }
 });
 
 // DB 테이블 자동 생성 및 초기 데이터 설정

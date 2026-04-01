@@ -4,10 +4,8 @@ const { Client } = require('pg');
 const path = require('path');
 
 const client = new Client({
-    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@db:5432/mahjong',
-    ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com')
-        ? { rejectUnauthorized: false }
-        : false
+    connectionString: process.env.DATABASE_URL || 'postgresql://postgres.vcilntnhahfrbxpocuyn:8896qwe9zx!@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true',
+    ssl: { rejectUnauthorized: false }
 });
 
 async function run() {
