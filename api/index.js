@@ -2,6 +2,8 @@ const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const xlsx = require('xlsx');
+
 
 const app = express();
 app.use(cors());
@@ -181,7 +183,7 @@ app.get('/api/records', async (req, res) => {
     const params = [limit, offset];
     if (year && year !== 'all') { whereClause = 'WHERE EXTRACT(YEAR FROM match_date) = $3'; params.push(parseInt(year)); }
     const result = await pool.query(`
-      SELECT id, match_date, round, wind, player_name, final_score, rank, uma, pangan, haneman, baiman, sanbaiman, yakuman, kazoeyakuman, doubleyakuman
+      SELECT id, match_date, round, wind, player_name, final_score, rank, uma, mangan, haneman, baiman, sanbaiman, yakuman, kazoeyakuman, doubleyakuman
       FROM match_results ${whereClause} ORDER BY match_date DESC, round DESC, rank ASC LIMIT $1 OFFSET $2
     `, params);
     res.json(result.rows);
@@ -231,7 +233,43 @@ app.delete('/api/records/:round', checkAuth, checkAdmin, async (req, res) => {
   } catch (err) { res.status(500).send(err.toString()); }
 });
 
+app.get('/api/export-excel', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM match_results ORDER BY match_date DESC, round DESC, rank ASC');
+
+    const excelData = result.rows.map(r => ({
+      '날짜': r.match_date ? new Date(r.match_date).toISOString().split('T')[0] : '',
+      '라운드': r.round,
+      '바람': r.wind,
+      '이름': r.player_name,
+      '최종점수': r.final_score,
+      '순위': r.rank,
+      '우마': r.uma,
+      '만관': r.mangan,
+      '하네만': r.haneman,
+      '배만': r.baiman,
+      '삼배만': r.sanbaiman,
+      '역만': r.yakuman,
+      '헤아림 역만': r.kazoeyakuman,
+      '더블 역만': r.doubleyakuman
+    }));
+
+    const ws = xlsx.utils.json_to_sheet(excelData);
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, '기록');
+
+    const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader('Content-Disposition', 'attachment; filename="mahjong_backup.xlsx"');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buf);
+  } catch (err) {
+    res.status(500).send(err.toString());
+  }
+});
+
 app.get('/api/daily-stats', async (req, res) => {
+
   try {
     const result = await pool.query(`SELECT TO_CHAR(match_date, 'YYYY-MM-DD') as match_day, player_name, COUNT(*) as total_matches, SUM(uma) as total_uma, AVG(rank)::numeric as avg_rank, SUM(CASE WHEN rank = 1 THEN 1 ELSE 0 END) as rank1_count, SUM(CASE WHEN rank = 4 THEN 1 ELSE 0 END) as rank4_count, MAX(final_score) as max_score FROM match_results GROUP BY match_day, player_name ORDER BY match_day DESC, total_uma DESC`);
     res.json(result.rows);
