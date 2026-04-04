@@ -1153,14 +1153,16 @@ export default function App() {
                     {/* Header Controls */}
                     <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                         <div className="w-full md:w-auto">
-                            <button
-                                onClick={() => {
-                                    window.open(`${API_BASE}/export-excel`, '_blank');
-                                }}
-                                className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-bold shadow-md transition-all active:scale-95 text-sm w-full md:w-auto"
-                            >
-                                <span>📥</span> 엑셀 백업 다운로드
-                            </button>
+                            {activeTab === 'records' && (
+                                <button
+                                    onClick={() => {
+                                        window.open(`${API_BASE}/export-excel`, '_blank');
+                                    }}
+                                    className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-bold shadow-md transition-all active:scale-95 text-sm w-full md:w-auto"
+                                >
+                                    <span>📥</span> 엑셀 백업 다운로드
+                                </button>
+                            )}
                         </div>
                         <div className="inline-flex bg-white rounded-lg p-1 shadow-sm border border-slate-200 w-full md:w-auto overflow-x-auto no-scrollbar">
                             {['all', '2025', '2026'].map(year => (
