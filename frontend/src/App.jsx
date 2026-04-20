@@ -206,12 +206,15 @@ export default function App() {
             { title: '💸 기부천사', item: '토비율', key: 'tobi_rate', sort: 'desc', format: v => `${(v * 100).toFixed(1)}%` },
         ];
 
-        const minMatches = (() => {
+        const minMatchesInfo = (() => {
             const year = parseInt(globalYear);
-            if (year <= 2025) return 10;
+            if (year <= 2025) return { min: 10, label: '10국 이상 기준' };
             const currentMonth = new Date().getMonth() + 1; // 1~12
-            return 5 * currentMonth;
+            const monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+            const min = 5 * currentMonth;
+            return { min, label: `${year}년 ${monthNames[currentMonth - 1]} 기준: ${min}국 이상 (매월 5국씩 증가)` };
         })();
+        const minMatches = minMatchesInfo.min;
 
         const getSortedForCategory = (key, direction) => {
             const list = key === 'total_matches' ? stats : stats.filter(s => s.total_matches >= minMatches);
@@ -236,7 +239,7 @@ export default function App() {
                         <span>🏛️</span> 명예의 전당
                     </h2>
                     <span className="text-sm font-bold bg-slate-100 text-slate-500 px-4 py-1.5 rounded-full border border-slate-200">
-                        {minMatches}국 이상 기준 (동점시 판수 우선)
+                        {minMatchesInfo.label} (동점시 판수 우선)
                     </span>
                 </div>
 
