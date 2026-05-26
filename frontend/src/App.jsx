@@ -1,4 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import HandRow from './components/HandRow.jsx';
+import HandStatsTable from './components/HandStatsTable.jsx';
+import MobileRecorder from './components/MobileRecorder.jsx';
+import MemberDetailModal from './components/MemberDetailModal.jsx';
+import { calcScore, calcRoundResult, calcClassCounts } from './lib/score.js';
 
 const API_BASE = '/api';
 
@@ -13,6 +18,9 @@ export default function App() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [stats, setStats] = useState([]);
     const [dailyStats, setDailyStats] = useState([]);
+    const [handStats, setHandStats] = useState([]);
+    const [detailMember, setDetailMember] = useState(null);
+    const [yakuStats, setYakuStats] = useState([]);
     const [players, setPlayers] = useState([]);
     const [newPlayerName, setNewPlayerName] = useState('');
 
@@ -43,6 +51,44 @@ export default function App() {
         { ...emptyPlayerRow, wind: '북' }
     ]);
 
+    // === Hand(국) 기록 관련 ===
+    // 기본 동남전 = 8국 (동1~동4, 남1~남4). 부족하면 "국 추가" 로 늘릴 수 있음.
+    const makeEmptyHand = (handNumber) => {
+        const windOrder = ['동', '남', '서', '북'];
+        const wind = windOrder[Math.floor((handNumber - 1) / 4)] || '북';
+        const roundNum = ((handNumber - 1) % 4) + 1;
+        return {
+            hand_number: handNumber,
+            hand_wind: wind,
+            hand_round_num: roundNum,
+            win_type: '',
+            winner_name: '',
+            deal_in_name: '',
+            win_score: '',
+            honba: 0,
+            han: null,
+            fu: null,
+            score_class: null,
+            is_riichi: false,
+            is_ippatsu: false,
+            riichi_e: false,
+            riichi_s: false,
+            riichi_w: false,
+            riichi_n: false,
+            dora_count: 0,
+            aka_dora_count: 0,
+            ura_dora_count: 0,
+            yaku_list: [],
+            yaku_text: '',
+            tenpai_e: false,
+            tenpai_s: false,
+            tenpai_w: false,
+            tenpai_n: false,
+        };
+    };
+    const getDefaultHands = () => Array.from({ length: 8 }, (_, i) => makeEmptyHand(i + 1));
+    const [newHands, setNewHands] = useState(getDefaultHands());
+
     // Stats sort state
     const [sortConfig, setSortConfig] = useState({ key: 'total_uma', direction: 'desc' });
 
@@ -62,6 +108,16 @@ export default function App() {
             .then(data => setDailyStats(data))
             .catch(err => console.error(err));
 
+        fetch(`${API_BASE}/hand-stats?year=${globalYear}`)
+            .then(res => res.json())
+            .then(data => setHandStats(Array.isArray(data) ? data : []))
+            .catch(err => console.error(err));
+
+        fetch(`${API_BASE}/yaku-stats?year=${globalYear}`)
+            .then(res => res.json())
+            .then(data => setYakuStats(Array.isArray(data) ? data : []))
+            .catch(err => console.error(err));
+
         fetch(`${API_BASE}/players`)
             .then(res => res.json())
             .then(data => {
@@ -78,6 +134,13 @@ export default function App() {
             .then(data => setPlayers(data))
             .catch(err => console.error(err));
     }, []);
+
+    // user 권한일 때 관리자 전용 탭에 들어와 있으면 자동으로 stats 로 이동
+    useEffect(() => {
+        if (userRole !== 'admin' && activeTab === 'member-admin') {
+            setActiveTab('stats');
+        }
+    }, [userRole, activeTab]);
 
     const handleRivalCompare = () => {
         if (!p1 || !p2) return;
@@ -131,6 +194,78 @@ export default function App() {
             return;
         }
 
+        // === hand 데이터 검증 (입력된 행만 추출) ===
+        const filledHands = newHands.filter(h => h.win_type);
+        for (const h of filledHands) {
+            if (h.win_type !== 'draw' && !h.winner_name) {
+                alert(`${h.hand_wind}${h.hand_round_num}국: 화료자를 선택해주세요.`);
+                return;
+            }
+            if (h.win_type === 'ron' && !h.deal_in_name) {
+                alert(`${h.hand_wind}${h.hand_round_num}국: 방총자를 선택해주세요.`);
+                return;
+            }
+            if (h.win_type === 'ron' && h.winner_name === h.deal_in_name) {
+                alert(`${h.hand_wind}${h.hand_round_num}국: 화료자와 방총자가 같을 수 없습니다.`);
+                return;
+            }
+        }
+        const handsToSend = filledHands
+            .sort((a, b) => a.hand_number - b.hand_number)
+            .map((h, i) => {
+                // 친 자리 자동 판정
+                const dealerPlayer = newPlayers.find(p => p.wind === h.hand_wind);
+                const isDealerWinner = dealerPlayer && dealerPlayer.name === h.winner_name;
+                // 자동 점수 계산
+                let calc = null;
+                if (h.win_type !== 'draw' && h.winner_name) {
+                    try {
+                        if ((h.score_class && h.score_class !== 'normal') || (h.han && h.fu)) {
+                            calc = calcScore({
+                                isDealerWinner,
+                                winType: h.win_type,
+                                han: h.han ? parseInt(h.han) : undefined,
+                                fu:  h.fu  ? parseInt(h.fu)  : undefined,
+                                scoreClass: h.score_class,
+                                honba: parseInt(h.honba) || 0,
+                            });
+                        }
+                    } catch (e) { console.warn('점수계산 실패 hand_number=' + h.hand_number, e.message); }
+                }
+                return {
+                    hand_number: i + 1,
+                    hand_wind: h.hand_wind,
+                    hand_round_num: Number(h.hand_round_num),
+                    win_type: h.win_type,
+                    winner_name: h.win_type === 'draw' ? null : h.winner_name,
+                    deal_in_name: h.win_type === 'ron'  ? h.deal_in_name : null,
+                    win_score: h.win_score === '' ? null : parseInt(h.win_score),
+                    honba: parseInt(h.honba) || 0,
+                    han: h.han || null,
+                    fu: h.fu || null,
+                    score_class: calc ? calc.scoreClass : (h.score_class || null),
+                    is_dealer_winner: !!isDealerWinner,
+                    is_riichi: !!h.is_riichi,
+                    is_ippatsu: !!h.is_ippatsu,
+                    riichi_e: !!h.riichi_e,
+                    riichi_s: !!h.riichi_s,
+                    riichi_w: !!h.riichi_w,
+                    riichi_n: !!h.riichi_n,
+                    dora_count: parseInt(h.dora_count) || 0,
+                    aka_dora_count: parseInt(h.aka_dora_count) || 0,
+                    ura_dora_count: parseInt(h.ura_dora_count) || 0,
+                    yaku_list: Array.isArray(h.yaku_list) ? h.yaku_list : [],
+                    yaku_text: h.yaku_text || null,
+                    point_total: calc ? calc.total : null,
+                    point_from_dealer: calc ? calc.fromDealer : null,
+                    point_from_non_dealer: calc ? calc.fromNonDealer : null,
+                    tenpai_e: h.win_type === 'draw' ? !!h.tenpai_e : null,
+                    tenpai_s: h.win_type === 'draw' ? !!h.tenpai_s : null,
+                    tenpai_w: h.win_type === 'draw' ? !!h.tenpai_w : null,
+                    tenpai_n: h.win_type === 'draw' ? !!h.tenpai_n : null,
+                };
+            });
+
         setIsSubmitting(true);
         try {
             const url = editingRound ? `${API_BASE}/records/${editingRound}` : `${API_BASE}/records`;
@@ -157,7 +292,8 @@ export default function App() {
                         yakuman: parseInt(p.yakuman) || 0,
                         kazoeyakuman: parseInt(p.kazoeyakuman) || 0,
                         doubleyakuman: parseInt(p.doubleyakuman) || 0
-                    }))
+                    })),
+                    hands: handsToSend
                 })
             });
 
@@ -165,11 +301,19 @@ export default function App() {
                 alert(editingRound ? '기록이 성공적으로 수정되었습니다!' : '기록이 성공적으로 저장되었습니다!');
                 window.location.reload();
             } else {
-                alert('저장 중 오류가 발생했습니다.');
+                const msg = await res.text();
+                console.error('save failed:', res.status, msg);
+                if (res.status === 401 || res.status === 403) {
+                    alert('인증이 만료되었습니다. 로그아웃 후 다시 로그인해주세요.\n(' + (msg || res.status) + ')');
+                } else if (msg && msg.includes('hand_results') && msg.toLowerCase().includes('does not exist')) {
+                    alert('hand_results 테이블이 없습니다. Supabase SQL Editor 에서 sql/001_hand_results.sql 을 실행해주세요.\n\n원본 에러: ' + msg);
+                } else {
+                    alert('저장 중 오류가 발생했습니다 (' + res.status + '): ' + (msg || '응답 본문 없음'));
+                }
             }
         } catch (e) {
             console.error(e);
-            alert('저장 중 서버와 통신할 수 없습니다.');
+            alert('저장 중 서버와 통신할 수 없습니다.\n(' + e.message + ')');
         } finally {
             setIsSubmitting(false);
         }
@@ -185,7 +329,31 @@ export default function App() {
                 { ...emptyPlayerRow, wind: '서' },
                 { ...emptyPlayerRow, wind: '북' }
             ]);
+            setNewHands(getDefaultHands());
         }
+    };
+
+    // === Hand 입력 UI 헬퍼 ===
+    const updateHand = (idx, field, value) => {
+        setNewHands(prev => prev.map((h, i) => {
+            if (i !== idx) return h;
+            const updated = { ...h, [field]: value };
+            if (field === 'win_type') {
+                if (value === 'draw') {
+                    updated.winner_name = '';
+                    updated.deal_in_name = '';
+                } else if (value === 'tsumo') {
+                    updated.deal_in_name = '';
+                }
+            }
+            return updated;
+        }));
+    };
+    const addHandRow = () => {
+        setNewHands(prev => [...prev, makeEmptyHand(prev.length + 1)]);
+    };
+    const removeHandRow = (idx) => {
+        setNewHands(prev => prev.filter((_, i) => i !== idx).map((h, i) => ({ ...h, hand_number: i + 1 })));
     };
 
     const renderDashboard = () => {
@@ -349,6 +517,9 @@ export default function App() {
                         <th className="p-3 border-r border-slate-700 text-red-300 hover:bg-slate-800 transition" onClick={() => requestSort('rank4_rate')}>4위율 {getSortIndicator('rank4_rate')}</th>
                         <th className="p-3 border-r border-slate-700 text-purple-300 hover:bg-slate-800 transition" onClick={() => requestSort('tobi_rate')}>토비율 {getSortIndicator('tobi_rate')}</th>
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank12_rate')}>연대율 {getSortIndicator('rank12_rate')}</th>
+                        <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('win_rate')}>화료율 {getSortIndicator('win_rate')}</th>
+                        <th className="p-3 border-r border-slate-700 text-emerald-300 hover:bg-slate-800 transition" onClick={() => requestSort('tsumo_rate')}>쯔모율 {getSortIndicator('tsumo_rate')}</th>
+                        <th className="p-3 border-r border-slate-700 text-rose-300 hover:bg-slate-800 transition" onClick={() => requestSort('deal_in_rate')}>방총율 {getSortIndicator('deal_in_rate')}</th>
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('max_score')}>최고 점수 {getSortIndicator('max_score')}</th>
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('min_score')}>최저 점수 {getSortIndicator('min_score')}</th>
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('avg_score')}>평균 득점 {getSortIndicator('avg_score')}</th>
@@ -375,7 +546,7 @@ export default function App() {
                         return (
                             <tr key={s.player_name} className={`border-b transition text-center ${isHighlighted ? 'bg-orange-100 hover:bg-orange-200 border-orange-300' : 'hover:bg-slate-50 border-slate-100'}`}>
                                 <td className={`p-3 font-medium border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100 text-slate-400 bg-slate-50'}`}>{idx + 1}</td>
-                                <td className={`p-3 font-bold border-r sticky-left z-20 ${isHighlighted ? 'border-orange-200 text-orange-900 bg-orange-100' : 'border-slate-100 text-slate-800 bg-white'}`}>{s.player_name}</td>
+                                <td className={`p-3 font-bold border-r sticky-left z-20 cursor-pointer hover:underline ${isHighlighted ? 'border-orange-200 text-orange-900 bg-orange-100' : 'border-slate-100 text-slate-800 bg-white'}`} onClick={() => setDetailMember(s.player_name)} title="클릭: 상세 통계">{s.player_name}</td>
                                 <td className={`p-3 font-medium border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{s.total_matches}</td>
                                 <td className={`p-3 font-black border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${getRankColor(idx)}`}>{Number(s.avg_rank).toFixed(2)}</td>
                                 <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.avg_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.avg_uma).toFixed(2)}</td>
@@ -386,6 +557,17 @@ export default function App() {
                                 <td className={`p-3 border-r text-red-500 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(s.rank4_rate * 100).toFixed(1)}%</td>
                                 <td className={`p-3 font-bold border-r text-purple-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(s.tobi_rate * 100).toFixed(1)}%</td>
                                 <td className={`p-3 font-bold border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${(s.rank12_rate * 100) >= 50 ? 'text-green-600' : ''}`}>{(s.rank12_rate * 100).toFixed(1)}%</td>
+                                <td className={`p-3 font-bold border-r text-green-700 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>
+                                    {s.win_rate == null ? '-' : `${(s.win_rate * 100).toFixed(1)}%`}
+                                    {s.hands_participated > 0 && <span className="ml-1 text-[10px] text-slate-400">({s.win_count}/{s.hands_participated})</span>}
+                                </td>
+                                <td className={`p-3 font-bold border-r text-emerald-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>
+                                    {s.tsumo_rate == null ? '-' : `${(s.tsumo_rate * 100).toFixed(1)}%`}
+                                </td>
+                                <td className={`p-3 font-bold border-r text-rose-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>
+                                    {s.deal_in_rate == null ? '-' : `${(s.deal_in_rate * 100).toFixed(1)}%`}
+                                    {s.hands_participated > 0 && <span className="ml-1 text-[10px] text-slate-400">({s.deal_in_count}/{s.hands_participated})</span>}
+                                </td>
                                 <td className={`p-3 border-r text-blue-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{Number(s.max_score).toLocaleString()}</td>
                                 <td className={`p-3 border-r text-red-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{Number(s.min_score).toLocaleString()}</td>
                                 <td className={`p-3 border-r w-full whitespace-nowrap ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{Number(s.avg_score).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
@@ -409,6 +591,7 @@ export default function App() {
                     })}
                 </tbody>
             </table>
+            <HandStatsTable handStats={handStats} yakuStats={yakuStats} onMemberClick={(name) => setDetailMember(name)} />
         </div>
     );
 
@@ -511,7 +694,7 @@ export default function App() {
         </div>
     );
 
-    const handleEditRound = (group) => {
+    const handleEditRound = async (group) => {
         if (!group || group.length === 0) return;
         const round = group[0].round;
         const date = new Date(group[0].match_date);
@@ -538,9 +721,53 @@ export default function App() {
             return { ...emptyPlayerRow, wind };
         });
 
+        let handsFromDb = [];
+        try {
+            const handRes = await fetch(`${API_BASE}/records/${round}/hands`);
+            if (handRes.ok) handsFromDb = await handRes.json();
+        } catch (e) {
+            console.error('hand fetch 실패', e);
+        }
+        const minRows = Math.max(8, handsFromDb.length);
+        const mappedHands = Array.from({ length: minRows }, (_, i) => {
+            const existing = handsFromDb.find(h => h.hand_number === i + 1);
+            if (existing) {
+                return {
+                    hand_number: existing.hand_number,
+                    hand_wind: existing.hand_wind,
+                    hand_round_num: existing.hand_round_num,
+                    win_type: existing.win_type,
+                    winner_name: existing.winner_name || '',
+                    deal_in_name: existing.deal_in_name || '',
+                    win_score: existing.win_score == null ? '' : existing.win_score,
+                    honba: existing.honba || 0,
+                    han: existing.han,
+                    fu: existing.fu,
+                    score_class: existing.score_class,
+                    is_riichi: !!existing.is_riichi,
+                    is_ippatsu: !!existing.is_ippatsu,
+                    riichi_e: !!existing.riichi_e,
+                    riichi_s: !!existing.riichi_s,
+                    riichi_w: !!existing.riichi_w,
+                    riichi_n: !!existing.riichi_n,
+                    dora_count: existing.dora_count || 0,
+                    aka_dora_count: existing.aka_dora_count || 0,
+                    ura_dora_count: existing.ura_dora_count || 0,
+                    yaku_list: existing.yaku_list || [],
+                    yaku_text: existing.yaku_text || '',
+                    tenpai_e: !!existing.tenpai_e,
+                    tenpai_s: !!existing.tenpai_s,
+                    tenpai_w: !!existing.tenpai_w,
+                    tenpai_n: !!existing.tenpai_n,
+                };
+            }
+            return makeEmptyHand(i + 1);
+        });
+
         setEditingRound(round);
         setNewRecordDate(dateString);
         setNewPlayers(mappedPlayers);
+        setNewHands(mappedHands);
         setActiveTab('new-record');
     };
 
@@ -756,8 +983,19 @@ export default function App() {
                 const pRes = await fetch(`${API_BASE}/players`);
                 const pData = await pRes.json();
                 setPlayers(pData);
+            } else {
+                // 사용자 피드백 보강 - 401/403 인 경우 로그아웃 유도
+                const msg = await res.text();
+                if (res.status === 401 || res.status === 403) {
+                    alert('인증이 만료되었거나 권한이 없습니다. 로그아웃 후 다시 로그인해주세요.\n(상세: ' + (msg || res.status) + ')');
+                } else {
+                    alert('멤버 추가 실패 (' + res.status + '): ' + (msg || '알 수 없는 오류'));
+                }
             }
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+            alert('서버와 통신할 수 없습니다. API 서버(npm run dev:api)가 떠 있는지 확인해주세요.\n(' + e.message + ')');
+        }
     };
 
     const renderMemberAdmin = () => (
@@ -805,6 +1043,36 @@ export default function App() {
 
     const renderNewRecord = () => {
         const totalScore = newPlayers.reduce((sum, p) => sum + (parseInt(p.score) || 0), 0);
+        // 자동 점수 누적 계산 (시작 25000 기준)
+        const filledHandsForCalc = newHands.filter(h => h.win_type);
+        let autoResult = { scores: {}, riichiPool: 0, errors: [] };
+        try {
+            autoResult = calcRoundResult(newPlayers, filledHandsForCalc);
+        } catch (e) { console.error('자동누적 계산 실패:', e.message); }
+        const autoTotal = newPlayers.reduce((s, p) => s + (autoResult.scores[p.name] || 0), 0);
+        // 등급(만관/하네만/...) 자동 카운트
+        const autoClassCounts = calcClassCounts(newPlayers, filledHandsForCalc);
+        const applyAutoScores = () => {
+            setNewPlayers(prev => {
+                const updated = prev.map(p => {
+                    const s = autoResult.scores[p.name];
+                    const c = autoClassCounts[p.name];
+                    const next = { ...p };
+                    if (s != null) next.score = String(Math.round(s));
+                    if (c) {
+                        next.mangan        = c.mangan;
+                        next.haneman       = c.haneman;
+                        next.baiman        = c.baiman;
+                        next.sanbaiman     = c.sanbaiman;
+                        next.yakuman       = c.yakuman;
+                        next.kazoeyakuman  = c.kazoeyakuman;
+                        next.doubleyakuman = c.doubleyakuman;
+                    }
+                    return next;
+                });
+                return calcRankAndUma(updated);
+            });
+        };
         return (
             <div className="bg-white shadow-lg rounded-xl p-6">
                 <div className="flex justify-between items-center border-b pb-2 mb-6">
@@ -829,6 +1097,7 @@ export default function App() {
                 </div>
 
                 <div className="overflow-x-auto mb-6 border rounded-xl shadow-inner bg-slate-50">
+
                     <table className="w-full text-left border-collapse text-sm min-w-[650px] table-fixed">
                         <thead>
                             <tr className="bg-slate-900 text-white text-center text-sm sticky-top">
@@ -920,6 +1189,109 @@ export default function App() {
                         {players.map(p => <option key={p.id} value={p.name} />)}
                     </datalist>
                 </div>
+{/*<table className="w-full text-left border-collapse text-sm min-w-[700px] table-fixed">
+                        <thead>
+                            <tr className="bg-slate-900 text-white text-center text-sm sticky-top">
+                                <th className="p-2 font-black border-r border-slate-700 w-12 whitespace-nowrap">#</th>
+                                <th className="p-2 font-black border-r border-slate-700 w-20 whitespace-nowrap">국</th>
+                                <th className="p-2 font-black border-r border-slate-700 w-24 whitespace-nowrap">결과</th>
+                                <th className="p-2 font-black border-r border-slate-700 w-28 whitespace-nowrap text-green-300">화료자</th>
+                                <th className="p-2 font-black border-r border-slate-700 w-28 whitespace-nowrap text-red-300">방총자 (론)</th>
+                                <th className="p-2 font-black border-r border-slate-700 w-20 whitespace-nowrap">점수(선택)</th>
+                                <th className="p-2 font-black w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {newHands.map((h, idx) => {
+                                const playerNames = newPlayers.map(p => p.name).filter(Boolean);
+                                const dealInOptions = playerNames.filter(n => n !== h.winner_name);
+                                return (
+                                    <tr key={idx} className="border-b transition text-center hover:bg-white border-slate-100 bg-white">
+                                        <td className="p-2 font-bold text-slate-500 border-r border-slate-200">{idx + 1}</td>
+                                        <td className="p-1 border-r border-slate-200">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <select
+                                                    value={h.hand_wind}
+                                                    onChange={(e) => updateHand(idx, 'hand_wind', e.target.value)}
+                                                    className="p-1 text-xs border border-slate-300 rounded font-bold bg-slate-50"
+                                                >
+                                                    <option value="동">동</option>
+                                                    <option value="남">남</option>
+                                                    <option value="서">서</option>
+                                                    <option value="북">북</option>
+                                                </select>
+                                                <select
+                                                    value={h.hand_round_num}
+                                                    onChange={(e) => updateHand(idx, 'hand_round_num', parseInt(e.target.value))}
+                                                    className="p-1 text-xs border border-slate-300 rounded font-bold bg-slate-50"
+                                                >
+                                                    <option value={1}>1</option>
+                                                    <option value={2}>2</option>
+                                                    <option value={3}>3</option>
+                                                    <option value={4}>4</option>
+                                                </select>
+                                            </div>
+                                        </td>
+                                        <td className="p-1 border-r border-slate-200">
+                                            <select
+                                                value={h.win_type}
+                                                onChange={(e) => updateHand(idx, 'win_type', e.target.value)}
+                                                className={'w-full p-1.5 text-sm border border-slate-300 rounded text-center font-bold ' + (h.win_type === 'tsumo' ? 'bg-green-50 text-green-700' : h.win_type === 'ron' ? 'bg-orange-50 text-orange-700' : h.win_type === 'draw' ? 'bg-slate-100 text-slate-600' : 'bg-white')}
+                                            >
+                                                <option value="">-</option>
+                                                <option value="tsumo">쯔모</option>
+                                                <option value="ron">론</option>
+                                                <option value="draw">유국</option>
+                                            </select>
+                                        </td>
+                                        <td className="p-1 border-r border-slate-200">
+                                            <select
+                                                value={h.winner_name}
+                                                onChange={(e) => updateHand(idx, 'winner_name', e.target.value)}
+                                                disabled={!h.win_type || h.win_type === 'draw'}
+                                                className="w-full p-1.5 text-sm border border-slate-300 rounded text-center font-bold disabled:bg-slate-100 disabled:text-slate-400"
+                                            >
+                                                <option value="">-</option>
+                                                {playerNames.map(name => <option key={name} value={name}>{name}</option>)}
+                                            </select>
+                                        </td>
+                                        <td className="p-1 border-r border-slate-200">
+                                            <select
+                                                value={h.deal_in_name}
+                                                onChange={(e) => updateHand(idx, 'deal_in_name', e.target.value)}
+                                                disabled={h.win_type !== 'ron'}
+                                                className="w-full p-1.5 text-sm border border-slate-300 rounded text-center font-bold disabled:bg-slate-100 disabled:text-slate-400"
+                                            >
+                                                <option value="">-</option>
+                                                {dealInOptions.map(name => <option key={name} value={name}>{name}</option>)}
+                                            </select>
+                                        </td>
+                                        <td className="p-1 border-r border-slate-200">
+                                            <input
+                                                type="number"
+                                                value={h.win_score}
+                                                onChange={(e) => updateHand(idx, 'win_score', e.target.value)}
+                                                disabled={h.win_type === 'draw' || !h.win_type}
+                                                placeholder=""
+                                                className="w-full p-1.5 text-sm border border-slate-300 rounded text-center disabled:bg-slate-100"
+                                            />
+                                        </td>
+                                        <td className="p-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => removeHandRow(idx)}
+                                                className="text-slate-400 hover:text-red-500 text-lg font-bold px-2"
+                                                title="이 국 삭제"
+                                            >
+                                                ×
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>*/}
 
                 <div className="flex flex-col md:flex-row justify-between items-center bg-slate-50 p-6 rounded-xl border border-slate-200">
                     <div className="mb-4 md:mb-0">
@@ -1107,11 +1479,11 @@ export default function App() {
 
                 <nav className={`${isMenuOpen ? 'flex' : 'hidden'} md:flex flex-col flex-1 p-3 md:p-4 space-y-1 md:space-y-2 overflow-y-auto no-scrollbar`}>
                     {[
-                        ...(userRole === 'admin' ? [
-                            { id: 'new-record', label: '📝 기록 입력하기' }
-                        ] : []),
-                        { id: 'records', label: '📊 개별 기록' },
+                        // 기록 입력: 관리자/참여자 모두 (맨 위)
+                        { id: 'mobile-record', label: '🀄 한 국씩 입력' },
+                        { id: 'new-record', label: '📝 결과만 등록' },
                         { id: 'daily', label: '🏠 일일 성적' },
+                        { id: 'records', label: '📊 개별 기록' },
                         { id: 'stats', label: '📈 전체 통계' },
                         { id: 'dashboard', label: '🏛️ 명예의 전당' },
                         { id: 'rival', label: '⚔️ 라이벌 분석' },
@@ -1191,8 +1563,25 @@ export default function App() {
                     {activeTab === 'stats' && renderStats()}
                     {activeTab === 'rival' && renderRival()}
                     {activeTab === 'records' && renderRecords()}
-                    {activeTab === 'new-record' && renderNewRecord()}
-                    {activeTab === 'member-admin' && renderMemberAdmin()}
+                    {activeTab === 'mobile-record' && (
+                        <MobileRecorder
+                            players={players}
+                            authToken={authToken}
+                            onClose={() => setActiveTab('stats')}
+                            onSaved={() => { window.location.reload(); }}
+                        />
+                    )}
+                    {activeTab === 'new-record'  && renderNewRecord()}
+                    {activeTab === 'member-admin' && userRole === 'admin' && renderMemberAdmin()}
+                    {detailMember && (
+                        <MemberDetailModal
+                            playerName={detailMember}
+                            allStats={stats}
+                            handStats={handStats}
+                            yakuStats={yakuStats}
+                            onClose={() => setDetailMember(null)}
+                        />
+                    )}
 
                     {/* Player Dropdown Data */}
                     <datalist id="player-names">
