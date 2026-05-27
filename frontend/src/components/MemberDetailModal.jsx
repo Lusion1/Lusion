@@ -30,12 +30,15 @@ export default function MemberDetailModal({ playerName, allStats = [], handStats
 
     // 役 카탈로그 묶음
     const yakuSections = [
-        { title: '1판역', keys: ['riichi','yakuhai','sangenpai','tanyao','pinfu','tsumo','ippatsu','iipeikou','haitei','houtei','rinshan','chankan'] },
+        // 5번: 역패/삼원패 분할. 옛 키(yakuhai/sangenpai)도 호환 카운트로 같이 표시
+        { title: '1판역', keys: ['riichi','yakuhai_haku','yakuhai_hatsu','yakuhai_chun','yakuhai_seat','yakuhai_round','yakuhai','sangenpai','tanyao','pinfu','tsumo','ippatsu','iipeikou','haitei','houtei','rinshan','chankan'] },
+        // 4번: sankantsu 키 그대로 (라벨만 '산깡즈'로 변경됨)
         { title: '2판역', keys: ['double_riichi','sanshoku','sanshoku_doukou','ittsu','chanta','toitoi','sanankou','sankantsu','chiitoitsu','honroutou','shousangen'] },
         { title: '3판역', keys: ['honitsu','junchan','ryanpeikou'] },
         { title: '6판역', keys: ['chinitsu'] },
         { title: '역만',  keys: ['kokushi','suuankou','daisangen','shousuushii','tsuiisou','ryuuiisou','chinroutou','chuuren','suukantsu','tenhou','chiihou'] },
-        { title: '더블역만', keys: ['daisuushii'] },
+        // 1번: 더블역만 3종 추가
+        { title: '더블역만', keys: ['daisuushii','kokushi_13','suuankou_tanki','junsei_chuuren'] },
     ];
 
     // 표 한 행
@@ -164,14 +167,4 @@ export default function MemberDetailModal({ playerName, allStats = [], handStats
                                     </tbody>
                                 </table>
                             </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="sticky bottom-0 bg-white border-t border-slate-200 p-3">
-                    <button onClick={onClose} className="w-full py-3 bg-slate-800 text-white rounded-lg font-bold">닫기</button>
-                </div>
-            </div>
-        </div>
-    );
-}
+               
