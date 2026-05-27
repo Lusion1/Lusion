@@ -238,3 +238,4 @@ export function resolveYakuConflicts(newKey, currentList, winType = null) {
 export function yakuLabels(keys) {
     return keys.map(k => YAKU_MAP[k]?.label || k);
 }
+
