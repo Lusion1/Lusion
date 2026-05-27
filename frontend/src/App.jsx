@@ -489,7 +489,7 @@ export default function App() {
     });
 
     const renderStats = () => (
-        <div className="bg-white shadow-lg rounded-xl p-6 overflow-x-auto">
+        <div className="bg-white shadow-lg rounded-xl p-6 overflow-auto max-h-[85vh]">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b pb-4 gap-4">
                 <h2 className="text-2xl font-bold text-slate-800">
                     전체 통계 <span className="text-sm font-normal text-slate-400 ml-2">(헤더를 클릭하면 정렬됩니다)</span>
