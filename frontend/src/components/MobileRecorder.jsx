@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { calcScore, calcRoundResult, calcClassCounts, classLabel } from '../lib/score.js';
-import { YAKU_BY_GROUP, YAKU_GROUPS, YAKU_MAP, resolveYakuConflicts, yakuLabels } from '../lib/yaku.js';
+import { YAKU_BY_GROUP, YAKU_GROUPS, YAKU_MAP, resolveYakuConflicts, yakuLabels, isYakuAllowedForWinType, filterYakuByWinType } from '../lib/yaku.js';
 
 const DEALER_WINDS = ['동', '남', '서', '북'];
 const WIND_TO_FIELD = { '동': 'e', '남': 's', '서': 'w', '북': 'n' };
@@ -97,6 +97,44 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
     const [yakuConflictMsg, setYakuConflictMsg] = useState('');
     const [multiRonMode, setMultiRonMode] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // 8번: 브라우저 임시저장 (localStorage)
+    const DRAFT_KEY = 'mahjong_draft_v1';
+    const [restorePrompt, setRestorePrompt] = useState(null);
+
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem(DRAFT_KEY);
+            if (!raw) return;
+            const data = JSON.parse(raw);
+            if (data && Array.isArray(data.hands) && data.hands.length > 0 && Array.isArray(data.seats)) {
+                setRestorePrompt(data);
+            }
+        } catch {}
+    }, []);
+
+    useEffect(() => {
+        if (step !== 'play') return;
+        if (!hands || hands.length === 0) return;
+        try {
+            localStorage.setItem(DRAFT_KEY, JSON.stringify({
+                date, seats, hands, multiRonMode, savedAt: new Date().toISOString(),
+            }));
+        } catch {}
+    }, [step, date, seats, hands, multiRonMode]);
+
+    const clearDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch {} };
+
+    const acceptRestore = () => {
+        if (!restorePrompt) return;
+        setDate(restorePrompt.date || getTodayString());
+        setSeats(restorePrompt.seats);
+        setHands(restorePrompt.hands);
+        setMultiRonMode(!!restorePrompt.multiRonMode);
+        setStep('play');
+        setRestorePrompt(null);
+    };
+    const rejectRestore = () => { clearDraft(); setRestorePrompt(null); };
 
     const seatPlayers = seats.map(s => ({ wind: s.wind, name: s.name }));
 
@@ -426,6 +464,20 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         if (!prev) return prev;
         const merged = { ...prev.draft, ...patch };
 
+        // 2번: win_type 변경 시 무효 役 자동 제거 + 안내
+        if ('win_type' in patch && Array.isArray(merged.yaku_list) && merged.yaku_list.length > 0) {
+            const wt = merged.win_type;
+            if (wt === 'tsumo' || wt === 'ron') {
+                const { list, removed } = filterYakuByWinType(merged.yaku_list, wt);
+                if (removed.length > 0) {
+                    merged.yaku_list = list;
+                    const labels = yakuLabels(removed).join(', ');
+                    setYakuConflictMsg(`⚠ ${wt === 'tsumo' ? '쯔모' : '론'} 으로 변경 → 무효 役 자동 해제: ${labels}`);
+                    setTimeout(() => setYakuConflictMsg(''), 4000);
+                }
+            }
+        }
+
         // (A) 화료자 자리의 리치 ↔ yaku_list 의 'riichi' 양방향 동기화
         const winnerWind = prev.winnerWind;
         if (winnerWind) {
@@ -473,12 +525,21 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
 
     const toggleYakuInDraft = (key) => {
         const cur = editingHand?.draft.yaku_list || [];
-        const { list, removed } = resolveYakuConflicts(key, cur);
+        const winType = editingHand?.draft.win_type || null;
+        // 2번: winType 무효 役은 시도 자체 차단
+        const result = resolveYakuConflicts(key, cur, winType);
+        if (result.rejected) {
+            const lbl = YAKU_MAP[result.rejected]?.label || result.rejected;
+            const reason = YAKU_MAP[result.rejected]?.winType === 'tsumo' ? '쯔모 전용 役' : '론 전용 役';
+            setYakuConflictMsg(`⚠ ${lbl} 는 ${reason} 입니다`);
+            setTimeout(() => setYakuConflictMsg(''), 4000);
+            return;
+        }
+        const { list, removed } = result;
         if (removed.length > 0) {
             const addedLabel = YAKU_MAP[key]?.label || key;
             const removedLabels = yakuLabels(removed).join(', ');
             setYakuConflictMsg(`⚠ ${addedLabel} 와(과) 양립 불가: ${removedLabels} 자동 해제됨`);
-            // 4초 후 메시지 숨김
             setTimeout(() => setYakuConflictMsg(''), 4000);
         } else {
             setYakuConflictMsg('');
@@ -500,9 +561,11 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             alert('화료자가 없습니다.');
             return;
         }
-        // 등급/한·부 둘 다 없으면 경고
+        // 7번: 부수 입력 분기 — 만관 이상(5판+)이거나 등급 직접 지정이면 부수 검증 skip
         const hasClass = d.score_class && d.score_class !== 'normal';
-        if (d.win_type !== 'draw' && !hasClass && (!d.han || !d.fu)) {
+        const hanNum = d.han ? parseInt(d.han) : 0;
+        const canAutoLimit = hanNum >= 5;
+        if (d.win_type !== 'draw' && !hasClass && !canAutoLimit && (!d.han || !d.fu)) {
             if (!window.confirm('한·부 또는 등급이 비어있어 점수가 0 으로 저장됩니다. 계속할까요?')) return;
         }
         setHands(prev => [...prev, { ...d }]);
@@ -663,7 +726,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
 
                                     {/* 판수 필터 탭 */}
                                     <div className="flex gap-1 mb-2 overflow-x-auto">
-                                        {['1판','2판','3판','6판','역만'].filter(g => YAKU_BY_GROUP[g]).map(grp => {
+                                        {['1판','2판','3판','6판','역만','더블역만'].filter(g => YAKU_BY_GROUP[g]).map(grp => {
                                             const selectedInGroup = (YAKU_BY_GROUP[grp] || []).filter(y => (d.yaku_list || []).includes(y.key)).length;
                                             return (
                                                 <button key={grp}
@@ -683,9 +746,11 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                             .filter(y => !(d.is_furo && y.menzenOnly))
                                             .map(y => {
                                                 const isReduced = d.is_furo && y.kuisagari;
+                                                // 2번: 현재 win_type 에서 무효한 役은 비활성 시각화
+                                                const disabledByWinType = d.win_type && y.winType && y.winType !== d.win_type;
                                                 return (
-                                                    <label key={y.key} className={'px-2 py-1.5 rounded border text-[12px] cursor-pointer ' + ((d.yaku_list || []).includes(y.key) ? 'bg-orange-100 border-orange-300 text-orange-800 font-bold' : 'bg-white border-slate-200 text-slate-600') + (isReduced ? ' italic' : '')}>
-                                                        <input type="checkbox" className="hidden" checked={(d.yaku_list || []).includes(y.key)} onChange={() => toggleYakuInDraft(y.key)} />
+                                                    <label key={y.key} title={disabledByWinType ? `${y.winType === 'tsumo' ? '쯔모' : '론'} 전용 役` : ''} className={'px-2 py-1.5 rounded border text-[12px] ' + (disabledByWinType ? 'opacity-40 cursor-not-allowed bg-slate-100 border-slate-200 text-slate-400' : 'cursor-pointer ' + ((d.yaku_list || []).includes(y.key) ? 'bg-orange-100 border-orange-300 text-orange-800 font-bold' : 'bg-white border-slate-200 text-slate-600')) + (isReduced ? ' italic' : '')}>
+                                                        <input type="checkbox" className="hidden" disabled={disabledByWinType} checked={(d.yaku_list || []).includes(y.key)} onChange={() => !disabledByWinType && toggleYakuInDraft(y.key)} />
                                                         {y.label}{isReduced && <span className="ml-0.5 text-[9px] text-slate-400">↓</span>}
                                                     </label>
                                                 );
@@ -739,13 +804,25 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                     )}
                                 </div>
 
-                                {/* 판·부 또는 등급 - 컴팩트 */}
+                                {/* 판·부 또는 등급 - 컴팩트 (7번: 자동 결정 시 disable) */}
+                                {(() => {
+                                    const hanNum = d.han ? parseInt(d.han) : 0;
+                                    const hasClass = d.score_class && d.score_class !== 'normal';
+                                    const yl = d.yaku_list || [];
+                                    const autoFu = yl.includes('pinfu') || yl.includes('chiitoitsu');
+                                    const fuDisabled = hasClass || hanNum >= 5 || autoFu;
+                                    const hanDisabled = hasClass;
+                                    let hint = '';
+                                    if (hasClass) hint = '등급 지정됨 → 판·부 불필요';
+                                    else if (hanNum >= 5) hint = '5판 이상 → 부수 불필요 (자동 만관 이상)';
+                                    else if (autoFu) hint = (yl.includes('pinfu') ? '핑허' : '치또이') + ' 자동 부수';
+                                    return (
                                 <div>
                                     <div className="flex items-center justify-between gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 mb-1.5">
-                                        <span className="text-xs font-bold text-slate-700">판 · 부 <span className="text-[10px] font-normal text-slate-400">(役·도라 자동 합산)</span></span>
+                                        <span className="text-xs font-bold text-slate-700">판 · 부 {hint ? <span className="text-[10px] font-normal text-emerald-600 ml-1">({hint})</span> : <span className="text-[10px] font-normal text-slate-400">(役·도라 자동 합산)</span>}</span>
                                         <div className="flex items-center gap-1">
-                                            <input type="number" min="0" placeholder="판" value={d.han || ''} onChange={e => updateDraft({ han: e.target.value === '' ? null : parseInt(e.target.value) })} className="w-14 h-8 border border-slate-300 rounded text-center text-sm font-bold" />
-                                            <input type="number" min="0" placeholder="부" value={d.fu || ''} onChange={e => updateDraft({ fu: e.target.value === '' ? null : parseInt(e.target.value) })} className="w-14 h-8 border border-slate-300 rounded text-center text-sm font-bold" />
+                                            <input type="number" min="0" placeholder="판" disabled={hanDisabled} value={d.han || ''} onChange={e => updateDraft({ han: e.target.value === '' ? null : parseInt(e.target.value) })} className={'w-14 h-8 border rounded text-center text-sm font-bold ' + (hanDisabled ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'border-slate-300')} />
+                                            <input type="number" min="0" placeholder="부" disabled={fuDisabled} value={d.fu || ''} onChange={e => updateDraft({ fu: e.target.value === '' ? null : parseInt(e.target.value) })} className={'w-14 h-8 border rounded text-center text-sm font-bold ' + (fuDisabled ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'border-slate-300')} />
                                         </div>
                                     </div>
                                     <div className="flex flex-wrap gap-1">
@@ -757,6 +834,8 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                         ))}
                                     </div>
                                 </div>
+                                    );
+                                })()}
 
 
 
@@ -885,6 +964,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                 body: JSON.stringify(payload),
             });
             if (res.ok) {
+                clearDraft(); // 8번: DB 저장 성공 시 임시저장 자동 정리
                 alert('저장 완료!');
                 if (onSaved) onSaved();
                 onClose();
@@ -946,7 +1026,33 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                 {step === 'play' && renderPlay()}
                 {step === 'done' && renderDone()}
                 {renderModal()}
+                {/* 8번: 임시저장 복원 모달 */}
+                {restorePrompt && (
+                    <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+                        <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl">
+                            <h3 className="text-lg font-bold text-slate-800 mb-2">진행 중이던 대국이 있어요</h3>
+                            <div className="text-xs text-slate-500 mb-3">
+                                저장 시각: {restorePrompt.savedAt ? new Date(restorePrompt.savedAt).toLocaleString('ko-KR') : '-'}
+                            </div>
+                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4 text-sm">
+                                <div className="font-bold text-slate-700 mb-1">자리</div>
+                                <div className="text-xs text-slate-600 mb-2">
+                                    {(restorePrompt.seats || []).map(s => `${s.wind}: ${s.name}`).join(' / ')}
+                                </div>
+                                <div className="font-bold text-slate-700 mb-1">진행</div>
+                                <div className="text-xs text-slate-600">
+                                    {(restorePrompt.hands || []).length}국 입력됨 (날짜: {restorePrompt.date || '-'})
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={rejectRestore} className="flex-1 py-2.5 bg-slate-200 text-slate-700 rounded-lg font-bold text-sm">새로 시작</button>
+                                <button onClick={acceptRestore} className="flex-1 py-2.5 bg-orange-500 text-white rounded-lg font-bold text-sm">이어서 진행</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
 }
+                                                    
