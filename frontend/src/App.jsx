@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import HandRow from './components/HandRow.jsx';
-import HandStatsTable from './components/HandStatsTable.jsx';
+
 import MobileRecorder from './components/MobileRecorder.jsx';
 import MemberDetailModal from './components/MemberDetailModal.jsx';
 import { calcScore, calcRoundResult, calcClassCounts } from './lib/score.js';
@@ -503,8 +503,8 @@ export default function App() {
                 />
             </div>
             <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
-                <thead>
-                    <tr className="bg-slate-900 text-white text-center cursor-pointer select-none sticky-top">
+                <thead className="sticky top-0 z-30">
+                    <tr className="bg-slate-900 text-white text-center cursor-pointer select-none">
                         <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition sticky-left bg-slate-900 z-[31]" onClick={() => requestSort('player_name')}>이름 {getSortIndicator('player_name')}</th>
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('total_matches')}>총 게임수 {getSortIndicator('total_matches')}</th>
                         <th className="p-3 border-r border-slate-700 text-orange-400 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank')}>평균 순위 {getSortIndicator('avg_rank')}</th>
@@ -589,7 +589,6 @@ export default function App() {
                     })}
                 </tbody>
             </table>
-            <HandStatsTable handStats={handStats} yakuStats={yakuStats} onMemberClick={(name) => setDetailMember(name)} />
         </div>
     );
 
