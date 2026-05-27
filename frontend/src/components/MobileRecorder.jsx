@@ -549,6 +549,11 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
 
     const confirmHand = () => {
         const d = editingHand.draft;
+        // 화료 모달(winnerWind 존재)인데 쯔모/론 선택 안 했으면 차단
+        if (editingHand.winnerWind && d.win_type !== 'tsumo' && d.win_type !== 'ron') {
+            alert('쯔모 또는 론을 선택해주세요.');
+            return;
+        }
         if (d.win_type === 'ron' && !d.deal_in_name) {
             alert('방총자를 선택해주세요.');
             return;
@@ -1045,7 +1050,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <button onClick={rejectRestore} className="flex-1 py-2.5 bg-slate-200 text-slate-700 rounded-lg font-bold text-sm">새로 시작</button>
                                 <button onClick={acceptRestore} className="flex-1 py-2.5 bg-orange-500 text-white rounded-lg font-bold text-sm">이어서 진행</button>
                             </div>
                         </div>
