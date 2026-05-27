@@ -42,4 +42,7 @@
         border-radius: 4px;
     }
 
-    ::-webkit-scr
+    ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+}

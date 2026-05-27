@@ -167,4 +167,10 @@ export default function MemberDetailModal({ playerName, allStats = [], handStats
                                     </tbody>
                                 </table>
                             </div>
-               
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
