@@ -295,7 +295,8 @@ export function calcRoundResult(players, hands, opts = {}) {
                         han: gh.han ? parseInt(gh.han) : undefined,
                         fu:  gh.fu  ? parseInt(gh.fu)  : undefined,
                         scoreClass: gh.score_class,
-                        honba: parseInt(gh.honba) || 0,
+                        // 룰 B: 더블론 시 본장료(혼바료)는 방총자의 下家 우선 화료자(=riichiReceiver) 1명만 수령
+                        honba: (isMulti && gh.winner_name !== riichiReceiver) ? 0 : (parseInt(gh.honba) || 0),
                     });
 
                     if (gh.win_type === 'ron') {
