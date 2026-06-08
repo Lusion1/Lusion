@@ -183,12 +183,12 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
         <div className="p-4 md:p-6 max-w-4xl mx-auto">
             {/* 헤더 */}
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-slate-800">📮 건의 게시판</h2>
+                <h2 className="text-2xl font-bold text-slate-800">📮 문의사항</h2>
                 <button
                     onClick={openWrite}
                     className="px-4 py-2 bg-orange-500 text-white rounded-lg font-bold hover:bg-orange-600"
                 >
-                    + 새 건의 작성
+                    + 새 문의사항 작성
                 </button>
             </div>
 
@@ -224,7 +224,7 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
             {!loading && items.length === 0 && (
                 <div className="text-center py-10 text-slate-400">
                     <div className="text-4xl mb-2">📭</div>
-                    <div className="text-sm">등록된 건의가 없습니다.</div>
+                    <div className="text-sm">등록된 문의사항이 없습니다.</div>
                 </div>
             )}
 
@@ -260,7 +260,7 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-stretch md:items-center justify-center p-0 md:p-4">
                     <div className="bg-white w-full max-w-lg max-h-full overflow-y-auto md:rounded-2xl">
                         <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center">
-                            <h3 className="text-lg font-bold text-slate-800">✏ 새 건의 작성</h3>
+                            <h3 className="text-lg font-bold text-slate-800">✏ 새 문의사항 작성</h3>
                             <button onClick={() => setWriteModal(false)} className="text-slate-400 text-2xl">×</button>
                         </div>
                         <div className="p-4 space-y-3">
