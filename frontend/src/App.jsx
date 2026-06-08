@@ -3,6 +3,7 @@ import HandRow from './components/HandRow.jsx';
 
 import MobileRecorder from './components/MobileRecorder.jsx';
 import MemberDetailModal from './components/MemberDetailModal.jsx';
+import SuggestionBoard from './components/SuggestionBoard.jsx';
 import { calcScore, calcRoundResult, calcClassCounts } from './lib/score.js';
 
 const API_BASE = '/api';
@@ -10,7 +11,7 @@ const API_BASE = '/api';
 export default function App() {
     const [authToken, setAuthToken] = useState(localStorage.getItem('mahjong_token') || null);
     const [userRole, setUserRole] = useState(localStorage.getItem('mahjong_role') || null);
-    const [loginId, setLoginId] = useState('');
+    const [loginId, setLoginId] = useState(localStorage.getItem('mahjong_login_id') || '');
     const [loginPassword, setLoginPassword] = useState('');
     const [loginError, setLoginError] = useState('');
 
@@ -1413,6 +1414,7 @@ export default function App() {
                     setUserRole(data.role);
                     localStorage.setItem('mahjong_token', data.token);
                     localStorage.setItem('mahjong_role', data.role);
+                    localStorage.setItem('mahjong_login_id', loginId);
 
                     if (data.role === 'user') {
                         setActiveTab('stats'); // Default to 'Overall Stats' for users
@@ -1487,6 +1489,7 @@ export default function App() {
                         ...(userRole === 'admin' ? [
                             { id: 'member-admin', label: '👥 멤버 관리' }
                         ] : []),
+                        { id: 'suggestions', label: '📮 건의' },
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -1570,6 +1573,13 @@ export default function App() {
                     )}
                     {activeTab === 'new-record'  && renderNewRecord()}
                     {activeTab === 'member-admin' && userRole === 'admin' && renderMemberAdmin()}
+                    {activeTab === 'suggestions' && (
+                        <SuggestionBoard
+                            authToken={authToken}
+                            userRole={userRole}
+                            userLoginId={loginId}
+                        />
+                    )}
                     {detailMember && (
                         <MemberDetailModal
                             playerName={detailMember}
