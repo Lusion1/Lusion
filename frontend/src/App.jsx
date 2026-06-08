@@ -1489,7 +1489,7 @@ export default function App() {
                         ...(userRole === 'admin' ? [
                             { id: 'member-admin', label: '👥 멤버 관리' }
                         ] : []),
-                        { id: 'suggestions', label: '📮 건의' },
+                        { id: 'suggestions', label: '📮 문의사항' },
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -1606,5 +1606,5 @@ export default function App() {
                 </div>
             </main>
         </div>
-    );
+   );
 }
