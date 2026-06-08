@@ -226,8 +226,10 @@ function validateHands(hands, players) {
   const seen = new Set();
   for (const h of hands) {
     if (h.hand_number == null) return 'hand_number 누락';
-    if (seen.has(h.hand_number)) return 'hand_number 중복: ' + h.hand_number;
-    seen.add(h.hand_number);
+    // 더블론/트리플론 허용: (hand_number, multi_index) 조합으로 중복 검증
+    const dupKey = h.hand_number + ':' + (parseInt(h.multi_index) || 1);
+    if (seen.has(dupKey)) return 'hand_number/multi_index 중복: ' + dupKey;
+    seen.add(dupKey);
     if (!['동','남','서','북'].includes(h.hand_wind)) return 'hand_wind 오류';
     if (![1,2,3,4].includes(Number(h.hand_round_num))) return 'hand_round_num 오류';
     if (!['tsumo','ron','draw','abortion','chombo'].includes(h.win_type)) return 'win_type 오류';
@@ -261,7 +263,8 @@ async function insertHands(client, hands, matchRound, matchDate) {
        tenpai_e, tenpai_s, tenpai_w, tenpai_n,
        riichi_e, riichi_s, riichi_w, riichi_n,
        abortion_type, chombo_player,
-       nagashi_e, nagashi_s, nagashi_w, nagashi_n)
+       nagashi_e, nagashi_s, nagashi_w, nagashi_n,
+       multi_index)
     VALUES ($1,  $2,  $3,  $4,  $5,
             $6,  $7,  $8,  $9,
             $10, $11, $12, $13, $14,
@@ -271,7 +274,8 @@ async function insertHands(client, hands, matchRound, matchDate) {
             $25, $26, $27, $28,
             $29, $30, $31, $32,
             $33, $34,
-            $35, $36, $37, $38)
+            $35, $36, $37, $38,
+            $39)
   `;
   const toIntOrNull = (v) => (v == null || v === '' ? null : parseInt(v));
   const toBool = (v) => v === true || v === 'true';
@@ -316,6 +320,7 @@ async function insertHands(client, hands, matchRound, matchDate) {
       toBool(h.nagashi_s),
       toBool(h.nagashi_w),
       toBool(h.nagashi_n),
+      parseInt(h.multi_index) || 1, // 더블론/트리플론 그룹 내 순번 (1, 2, 3...)
     ]);
   }
 }
@@ -529,4 +534,3 @@ app.get('/api/daily-stats', async (req, res) => {
 });
 
 export default app;
-
