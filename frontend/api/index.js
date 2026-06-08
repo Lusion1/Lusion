@@ -533,4 +533,124 @@ app.get('/api/daily-stats', async (req, res) => {
   } catch (err) { res.status(500).send(err.toString()); }
 });
 
+// ===== 건의 게시판 (suggestions) =====
+const VALID_SUGGESTION_STATUS = ['pending', 'received', 'done', 'rejected'];
+
+// 목록 조회 (누구나) — 상태 필터 + 페이지네이션
+app.get('/api/suggestions', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const offset = parseInt(req.query.offset) || 0;
+    const status = req.query.status;
+    const params = [limit, offset];
+    let where = '';
+    if (status && VALID_SUGGESTION_STATUS.includes(status)) {
+      where = 'WHERE status = $3';
+      params.push(status);
+    }
+    const result = await pool.query(
+      `SELECT id, nickname, title, content, status,
+              created_at, updated_at,
+              admin_reply, admin_reply_by, admin_reply_at, created_by
+         FROM suggestions ${where}
+        ORDER BY created_at DESC
+        LIMIT $1 OFFSET $2`,
+      params
+    );
+    res.json(result.rows);
+  } catch (err) { res.status(500).send(err.toString()); }
+});
+
+// 상세 조회 (누구나)
+app.get('/api/suggestions/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (!id) return res.status(400).send('Invalid id');
+    const result = await pool.query(
+      `SELECT id, nickname, title, content, status,
+              created_at, updated_at,
+              admin_reply, admin_reply_by, admin_reply_at, created_by
+         FROM suggestions WHERE id = $1`,
+      [id]
+    );
+    if (result.rows.length === 0) return res.status(404).send('Not found');
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).send(err.toString()); }
+});
+
+// 작성 (로그인 필요 — admin/user 모두 가능)
+app.post('/api/suggestions', checkAuth, async (req, res) => {
+  try {
+    const { nickname, title, content } = req.body;
+    if (!nickname || !nickname.trim()) return res.status(400).send('닉네임을 입력해주세요.');
+    if (!title || !title.trim()) return res.status(400).send('제목을 입력해주세요.');
+    if (!content || !content.trim()) return res.status(400).send('내용을 입력해주세요.');
+    if (nickname.length > 50) return res.status(400).send('닉네임은 50자 이내');
+    if (title.length > 200) return res.status(400).send('제목은 200자 이내');
+    if (content.length > 5000) return res.status(400).send('내용은 5000자 이내');
+    const result = await pool.query(
+      `INSERT INTO suggestions (nickname, title, content, status, created_by)
+       VALUES ($1, $2, $3, 'pending', $4)
+       RETURNING id, nickname, title, content, status, created_at, updated_at, created_by`,
+      [nickname.trim(), title.trim(), content.trim(), req.user?.id || null]
+    );
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).send(err.toString()); }
+});
+
+// 관리자 답글 작성 + 상태 변경 (관리자만)
+app.put('/api/suggestions/:id/reply', checkAuth, checkAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (!id) return res.status(400).send('Invalid id');
+    const { admin_reply, status } = req.body;
+    if (!admin_reply || !admin_reply.trim()) return res.status(400).send('답글 내용을 입력해주세요.');
+    if (admin_reply.length > 5000) return res.status(400).send('답글은 5000자 이내');
+    const newStatus = status && VALID_SUGGESTION_STATUS.includes(status) ? status : 'received';
+    const result = await pool.query(
+      `UPDATE suggestions
+          SET admin_reply = $1,
+              admin_reply_by = $2,
+              admin_reply_at = CURRENT_TIMESTAMP,
+              status = $3,
+              updated_at = CURRENT_TIMESTAMP
+        WHERE id = $4
+       RETURNING id, nickname, title, content, status, created_at, updated_at, admin_reply, admin_reply_by, admin_reply_at, created_by`,
+      [admin_reply.trim(), req.user?.id || 'admin', newStatus, id]
+    );
+    if (result.rows.length === 0) return res.status(404).send('Not found');
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).send(err.toString()); }
+});
+
+// 상태만 변경 (관리자만)
+app.put('/api/suggestions/:id/status', checkAuth, checkAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (!id) return res.status(400).send('Invalid id');
+    const { status } = req.body;
+    if (!VALID_SUGGESTION_STATUS.includes(status)) return res.status(400).send('Invalid status');
+    const result = await pool.query(
+      `UPDATE suggestions
+          SET status = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+       RETURNING id, status, updated_at`,
+      [status, id]
+    );
+    if (result.rows.length === 0) return res.status(404).send('Not found');
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).send(err.toString()); }
+});
+
+// 삭제 (관리자만)
+app.delete('/api/suggestions/:id', checkAuth, checkAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (!id) return res.status(400).send('Invalid id');
+    const result = await pool.query('DELETE FROM suggestions WHERE id = $1 RETURNING id', [id]);
+    if (result.rows.length === 0) return res.status(404).send('Not found');
+    res.json({ success: true, id });
+  } catch (err) { res.status(500).send(err.toString()); }
+});
+
 export default app;
