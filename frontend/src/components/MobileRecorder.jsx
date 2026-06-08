@@ -92,7 +92,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         { wind: '북', name: '' },
     ]);
     const [hands, setHands] = useState([]);
-    const [editingHand, setEditingHand] = useState(null); // { meta, winnerWind?, draft }
+    const [editingHand, setEditingHand] = useState(null); // { mode, winnerWind?, lockedDealIn, isMultiRon, editIndex, draft }
     const [activeYakuGroup, setActiveYakuGroup] = useState('1판');
     const [yakuConflictMsg, setYakuConflictMsg] = useState('');
     const [multiRonMode, setMultiRonMode] = useState(false);
@@ -142,7 +142,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
     const autoResult = useMemo(() => {
         try {
             return calcRoundResult(seatPlayers, hands);
-        } catch { return { scores: {}, riichiPool: 0, errors: [] }; }
+        } catch { return { scores: {}, riichiPool: 0, perHand: [], errors: [] }; }
     }, [seatPlayers, hands]);
 
     // ===== Step 1: 자리 배정 =====
@@ -190,7 +190,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
     const dealerWindNow = DEALER_WINDS[(meta.hand_round_num || 1) - 1];
 
     const openHand = (winnerWind) => {
-        // 마이너스 점수 검사
         const negList = seats
             .filter(p => p.name && (autoResult.scores[p.name] || 0) < 0)
             .map(p => `${p.wind} ${p.name} (${Math.round(autoResult.scores[p.name])})`);
@@ -198,21 +197,24 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             const msg = '⚠ 토비(마이너스) 발생: ' + negList.join(', ') + '\n룰에 따라 보통 여기서 경기 종료입니다. 그래도 다음 국을 계속 진행하시겠습니까?';
             if (!window.confirm(msg)) return;
         }
-        // 더블론 모드 + 직전 hand 가 같은 meta + ron 이면 같은 hand_number 로 묶고 방총자 잠금
         let handNum = meta.hand_number;
         let lockedDealIn = null;
+        let isMultiRon = false;
         if (multiRonMode && winnerWind && hands.length > 0) {
             const last = hands[hands.length - 1];
             const sameMeta = last.hand_wind === meta.hand_wind && last.hand_round_num === meta.hand_round_num && (last.honba || 0) === (meta.honba || 0);
             if (sameMeta && last.win_type === 'ron') {
                 handNum = last.hand_number;
                 lockedDealIn = last.deal_in_name;
+                isMultiRon = true;
             }
         }
         setEditingHand({
             mode: winnerWind ? 'win' : 'draw',
             winnerWind,
             lockedDealIn,
+            isMultiRon,
+            editIndex: null,
             draft: {
                 hand_number: handNum,
                 hand_wind: meta.hand_wind,
@@ -240,7 +242,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         });
     };
 
-    // 도중 유국 / 촌보 빠른 입력
     const ABORTION_LABELS = { kyuushu: '구종구패', sufon: '사풍연타', suucha_riichi: '사가리치', suukantsu: '사깡산료' };
     const recordAbortion = (abortionType) => {
         if (!window.confirm(`${ABORTION_LABELS[abortionType]} 으로 처리할까요? (점수 ${abortionType === 'suucha_riichi' ? '4명 -1000' : '변동 없음'}, 본장 +1, 친 유지)`)) return;
@@ -253,7 +254,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             abortion_type: abortionType,
             winner_name: null,
             deal_in_name: null,
-            // 사가리치는 자리별 리치 모두 true 로 마킹 (점수 계산용)
             riichi_e: abortionType === 'suucha_riichi',
             riichi_s: abortionType === 'suucha_riichi',
             riichi_w: abortionType === 'suucha_riichi',
@@ -283,7 +283,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             win_type: 'draw',
             winner_name: null,
             deal_in_name: null,
-            // 텐파이/리치 모두 false, nagashi 해당 자리만 true
             tenpai_e: false, tenpai_s: false, tenpai_w: false, tenpai_n: false,
             riichi_e: false, riichi_s: false, riichi_w: false, riichi_n: false,
             nagashi_e: seat.wind === '동',
@@ -320,6 +319,50 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         if (hands.length === 0) return;
         if (window.confirm('마지막 국 기록을 되돌리시겠습니까?')) {
             setHands(prev => prev.slice(0, -1));
+        }
+    };
+
+    // 기존 hand 를 모달에 불러와 수정 모드로 진입
+    const openHandForEdit = (index) => {
+        const h = hands[index];
+        if (!h) return;
+        if (h.win_type === 'abortion' || h.win_type === 'chombo') {
+            alert('도중유국/촌보는 수정 불가합니다. 🗑 삭제 후 재기록해주세요.');
+            return;
+        }
+        const winnerSeat = h.winner_name ? seats.find(s => s.name === h.winner_name) : null;
+        const winnerWind = winnerSeat?.wind || h._winnerWind || null;
+        const groupRonCount = hands.filter(g => g.hand_number === h.hand_number && g.win_type === 'ron').length;
+        const isMultiRon = groupRonCount >= 2;
+        setEditingHand({
+            mode: h.win_type === 'draw' ? 'draw' : 'win',
+            winnerWind: h.win_type === 'draw' ? null : winnerWind,
+            lockedDealIn: isMultiRon ? (h.deal_in_name || null) : null,
+            isMultiRon,
+            editIndex: index,
+            draft: { ...h, _winnerWind: winnerWind },
+        });
+    };
+
+    // 단일 또는 더블론 그룹 hand 삭제
+    const deleteHand = (index) => {
+        const h = hands[index];
+        if (!h) return;
+        const groupIdx = hands
+            .map((g, i) => ({ g, i }))
+            .filter(({ g }) => g.hand_number === h.hand_number && g.win_type === 'ron')
+            .map(({ i }) => i);
+        const isMultiRonRow = h.win_type === 'ron' && groupIdx.length >= 2;
+        if (isMultiRonRow) {
+            if (!window.confirm(`이 hand 는 더블론(${groupIdx.length}명 화료)입니다.\n같은 국의 화료자 ${groupIdx.length}명 기록이 모두 함께 삭제됩니다. 계속할까요?`)) return;
+            setHands(prev => prev.filter((_, i) => !groupIdx.includes(i)));
+        } else {
+            const isLast = index === hands.length - 1;
+            const msg = isLast
+                ? '이 hand 기록을 삭제할까요?'
+                : '이 hand 를 삭제할까요?\n주의: 뒤 국의 본장/풍은 자동 조정되지 않고 그대로 유지됩니다.';
+            if (!window.confirm(msg)) return;
+            setHands(prev => prev.filter((_, i) => i !== index));
         }
     };
 
@@ -368,7 +411,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                     })}
                 </div>
 
-                {/* 더블론 모드 토글 */}
                 <label className={'flex items-center justify-between gap-2 px-3 py-2 rounded-lg border-2 cursor-pointer ' + (multiRonMode ? 'border-fuchsia-500 bg-fuchsia-50' : 'border-slate-200 bg-white')}>
                     <span className="text-sm font-bold">{multiRonMode ? '🎯 더블론 모드 ON' : '더블론 모드 OFF'}</span>
                     <input type="checkbox" className="sr-only" checked={multiRonMode} onChange={e => setMultiRonMode(e.target.checked)} />
@@ -380,7 +422,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                     <button onClick={undoLastHand} disabled={hands.length === 0} className={'flex-1 py-3 rounded-lg font-bold ' + (hands.length ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-400')}>↶ 무르기</button>
                 </div>
 
-                {/* 도중 유국 / 촌보 */}
                 <details className="border border-slate-200 rounded-lg">
                     <summary className="cursor-pointer px-3 py-2 text-sm text-slate-600">⚠ 도중유국 / 유국만관 / 촌보</summary>
                     <div className="p-2 grid grid-cols-2 gap-2">
@@ -398,43 +439,103 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                     <button onClick={finishGame} className="flex-1 py-3 bg-orange-500 text-white rounded-lg font-bold">경기 종료 → 저장</button>
                 </div>
 
-                {hands.length > 0 && (
-                    <div className="border border-slate-100 rounded-lg p-2 mt-2">
-                        <div className="text-xs font-bold text-slate-500 mb-1">진행 기록</div>
-                        <div className="text-xs space-y-1 max-h-32 overflow-y-auto">
-                            {hands.map((h, i) => (
-                                <div key={i} className="flex justify-between text-slate-700">
-                                    <span>{h.hand_wind}{h.hand_round_num}{h.honba ? `·${h.honba}본장` : ''}</span>
-                                    <span>
-                                        {(() => {
-                                            if (h.win_type === 'draw') {
-                                                const nagashiWinds = ['동','남','서','북'].filter(w => h['nagashi_' + WIND_TO_FIELD[w]]);
-                                                if (nagashiWinds.length > 0) {
-                                                    const names = nagashiWinds.map(w => (seats.find(s => s.wind === w)?.name) || w).join(',');
-                                                    return `유국만관 (${names})`;
-                                                }
-                                                return '유국';
+                {hands.length > 0 && (() => {
+                    // hand_number → autoResult.perHand 인덱스 매핑 (더블론 그룹은 한 항목)
+                    const hnToPi = {};
+                    {
+                        let pi = 0;
+                        const seen = new Set();
+                        for (const hh of hands) {
+                            if (!seen.has(hh.hand_number)) {
+                                hnToPi[hh.hand_number] = pi;
+                                seen.add(hh.hand_number);
+                                pi++;
+                            }
+                        }
+                    }
+                    const initScores = {};
+                    for (const s of seats) if (s.name) initScores[s.name] = 25000;
+                    const fmtDelta = (n) => (n > 0 ? '+' : (n < 0 ? '−' : '')) + Math.abs(n).toLocaleString();
+                    return (
+                        <div className="border border-slate-100 rounded-lg p-2 mt-2">
+                            <div className="text-xs font-bold text-slate-500 mb-1">진행 기록 <span className="font-normal text-slate-400">— ✏ 수정 / 🗑 삭제</span></div>
+                            <div className="text-xs space-y-1 max-h-40 overflow-y-auto">
+                                {hands.map((h, i) => {
+                                    const canEdit = h.win_type === 'tsumo' || h.win_type === 'ron' || h.win_type === 'draw';
+                                    const groupRonCount = hands.filter(g => g.hand_number === h.hand_number && g.win_type === 'ron').length;
+                                    const isMultiRow = h.win_type === 'ron' && groupRonCount >= 2;
+                                    const prev = i > 0 ? hands[i - 1] : null;
+                                    const isMultiSubRow = isMultiRow && prev && prev.hand_number === h.hand_number && prev.win_type === 'ron';
+
+                                    // 점수 변동 계산 (perHand 기반: 리치봉/혼바료 자동 반영)
+                                    const pi = hnToPi[h.hand_number];
+                                    const prevScores = (pi == null || pi === 0) ? initScores : (autoResult.perHand?.[pi - 1]?.scores || initScores);
+                                    const currScores = (pi == null) ? {} : (autoResult.perHand?.[pi]?.scores || {});
+                                    const calcD = (nm) => Math.round((currScores[nm] || 0) - (prevScores[nm] || 0));
+                                    let deltaText = null;
+                                    let deltaColor = '';
+                                    if ((h.win_type === 'tsumo' || h.win_type === 'ron') && h.winner_name) {
+                                        const d = calcD(h.winner_name);
+                                        if (d !== 0) { deltaText = fmtDelta(d); deltaColor = d > 0 ? 'text-green-600' : 'text-red-500'; }
+                                    } else if (h.win_type === 'chombo' && h.chombo_player) {
+                                        const d = calcD(h.chombo_player);
+                                        if (d !== 0) { deltaText = fmtDelta(d); deltaColor = 'text-red-500'; }
+                                    } else if (h.win_type === 'abortion' && h.abortion_type === 'suucha_riichi') {
+                                        deltaText = '−1,000×4';
+                                        deltaColor = 'text-red-500';
+                                    } else if (h.win_type === 'draw') {
+                                        const nagashiWind = ['동','남','서','북'].find(w => h['nagashi_' + WIND_TO_FIELD[w]]);
+                                        if (nagashiWind) {
+                                            const seat = seats.find(s => s.wind === nagashiWind);
+                                            if (seat) {
+                                                const d = calcD(seat.name);
+                                                if (d !== 0) { deltaText = fmtDelta(d); deltaColor = d > 0 ? 'text-green-600' : 'text-red-500'; }
                                             }
-                                            if (h.win_type === 'abortion') return `도중유국 (${({kyuushu:'구종구패',sufon:'사풍연타',suucha_riichi:'사가리치',suukantsu:'사깡산료'})[h.abortion_type] || '?'})`;
-                                            if (h.win_type === 'chombo') return `촌보 (${h.chombo_player || '?'})`;
-                                            return `${h.winner_name} ${h.win_type === 'tsumo' ? '쯔모' : '론(' + (h.deal_in_name || '?') + ')'}`;
-                                        })()}
-                                    </span>
-                                </div>
-                            ))}
+                                        }
+                                    }
+
+                                    return (
+                                        <div key={i} className={'flex justify-between items-center gap-1 text-slate-700 ' + (isMultiSubRow ? 'pl-2 border-l-2 border-fuchsia-300' : '')}>
+                                            <span className="shrink-0 text-slate-500">{h.hand_wind}{h.hand_round_num}{h.honba ? `·${h.honba}본장` : ''}</span>
+                                            <span className="flex-1 text-right truncate">
+                                                {(() => {
+                                                    if (h.win_type === 'draw') {
+                                                        const nagashiWinds = ['동','남','서','북'].filter(w => h['nagashi_' + WIND_TO_FIELD[w]]);
+                                                        if (nagashiWinds.length > 0) {
+                                                            const names = nagashiWinds.map(w => (seats.find(s => s.wind === w)?.name) || w).join(',');
+                                                            return `유국만관 (${names})`;
+                                                        }
+                                                        return '유국';
+                                                    }
+                                                    if (h.win_type === 'abortion') return `도중유국 (${({kyuushu:'구종구패',sufon:'사풍연타',suucha_riichi:'사가리치',suukantsu:'사깡산료'})[h.abortion_type] || '?'})`;
+                                                    if (h.win_type === 'chombo') return `촌보 (${h.chombo_player || '?'})`;
+                                                    return `${h.winner_name} ${h.win_type === 'tsumo' ? '쯔모' : '론(' + (h.deal_in_name || '?') + ')'}`;
+                                                })()}
+                                                {deltaText && <span className={'ml-1 font-bold ' + deltaColor}>{deltaText}</span>}
+                                            </span>
+                                            <div className="flex gap-0.5 shrink-0">
+                                                {canEdit ? (
+                                                    <button type="button" onClick={() => openHandForEdit(i)} className="px-1.5 py-0.5 text-fuchsia-600 hover:bg-fuchsia-50 active:bg-fuchsia-100 rounded text-[12px] leading-none" title="수정">✏</button>
+                                                ) : (
+                                                    <span className="w-5"></span>
+                                                )}
+                                                <button type="button" onClick={() => deleteHand(i)} className="px-1.5 py-0.5 text-rose-600 hover:bg-rose-50 active:bg-rose-100 rounded text-[12px] leading-none" title="삭제">🗑</button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    );
+                })()}
             </div>
         );
     };
 
     // ===== Step 3: 화료/유국 입력 모달 =====
-    // 役/도라/우라/후로/방식 변경 시 자동으로 판·부 재계산
     const recomputeHanFu = (draft) => {
         if (draft.win_type === 'draw') return {};
         const yakuList = draft.yaku_list || [];
-        // 등급(score_class)이 설정된 경우는 판·부 무관 → 손대지 않음
         if (draft.score_class && draft.score_class !== 'normal') return {};
 
         let totalHan = 0;
@@ -450,8 +551,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         const out = {};
         out.han = totalHan > 0 ? totalHan : null;
 
-        // 핑허 → 쯔모 20부 / 론 30부 (고정)
-        // 치또이 → 25부 (고정)
         if (yakuList.includes('pinfu') && draft.win_type) {
             out.fu = draft.win_type === 'tsumo' ? 20 : 30;
         } else if (yakuList.includes('chiitoitsu')) {
@@ -464,7 +563,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         if (!prev) return prev;
         const merged = { ...prev.draft, ...patch };
 
-        // 2번: win_type 변경 시 무효 役 자동 제거 + 안내
         if ('win_type' in patch && Array.isArray(merged.yaku_list) && merged.yaku_list.length > 0) {
             const wt = merged.win_type;
             if (wt === 'tsumo' || wt === 'ron') {
@@ -478,16 +576,13 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             }
         }
 
-        // (A) 화료자 자리의 리치 ↔ yaku_list 의 'riichi' 양방향 동기화
         const winnerWind = prev.winnerWind;
         if (winnerWind) {
             const rField = 'riichi_' + WIND_TO_FIELD[winnerWind];
             const yakuHasRiichi = (merged.yaku_list || []).includes('riichi');
-            // patch 에 yaku_list 가 있으면 자리 컬럼을 yaku 기준으로 맞춤
             if ('yaku_list' in patch) {
                 merged[rField] = yakuHasRiichi;
             }
-            // patch 에 riichi_X 가 있으면 yaku_list 를 자리 기준으로 맞춤
             if (rField in patch) {
                 const yl = merged.yaku_list || [];
                 if (merged[rField] && !yakuHasRiichi) merged.yaku_list = [...yl, 'riichi'];
@@ -495,7 +590,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             }
         }
 
-        // (B) 役 카탈로그의 scoreClass 자동 반영 (役만/더블역만 등 체크 시 등급 자동)
         const ylNow = merged.yaku_list || [];
         const CLASS_RANK = { mangan: 1, haneman: 2, baiman: 3, sanbaiman: 4, kazoe_yakuman: 5, yakuman: 5, double_yakuman: 6, triple_yakuman: 7 };
         let bestClass = null; let bestRank = 0;
@@ -506,13 +600,10 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                 if (r > bestRank) { bestRank = r; bestClass = y.scoreClass; }
             }
         }
-        // 사용자가 명시적으로 score_class 를 변경했다면(patch 에 score_class 포함) 그 값 우선
         if (!('score_class' in patch)) {
             if (bestClass) merged.score_class = bestClass;
-            // 役 카탈로그 등급이 없으면 사용자 기존 값 유지
         }
 
-        // (C) 판·부 재계산
         const triggerKeys = ['yaku_list', 'dora_count', 'ura_dora_count', 'is_furo', 'win_type', 'score_class', winnerWind ? ('riichi_' + WIND_TO_FIELD[winnerWind]) : ''];
         const shouldRecalc = Object.keys(patch).some(k => triggerKeys.includes(k));
         if (shouldRecalc) {
@@ -526,7 +617,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
     const toggleYakuInDraft = (key) => {
         const cur = editingHand?.draft.yaku_list || [];
         const winType = editingHand?.draft.win_type || null;
-        // 2번: winType 무효 役은 시도 자체 차단
         const result = resolveYakuConflicts(key, cur, winType);
         if (result.rejected) {
             const lbl = YAKU_MAP[result.rejected]?.label || result.rejected;
@@ -549,7 +639,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
 
     const confirmHand = () => {
         const d = editingHand.draft;
-        // 화료 모달(winnerWind 존재)인데 쯔모/론 선택 안 했으면 차단
         if (editingHand.winnerWind && d.win_type !== 'tsumo' && d.win_type !== 'ron') {
             alert('쯔모 또는 론을 선택해주세요.');
             return;
@@ -566,14 +655,18 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             alert('화료자가 없습니다.');
             return;
         }
-        // 7번: 부수 입력 분기 — 만관 이상(5판+)이거나 등급 직접 지정이면 부수 검증 skip
         const hasClass = d.score_class && d.score_class !== 'normal';
         const hanNum = d.han ? parseInt(d.han) : 0;
         const canAutoLimit = hanNum >= 5;
         if (d.win_type !== 'draw' && !hasClass && !canAutoLimit && (!d.han || !d.fu)) {
             if (!window.confirm('한·부 또는 등급이 비어있어 점수가 0 으로 저장됩니다. 계속할까요?')) return;
         }
-        setHands(prev => [...prev, { ...d }]);
+        const editIdx = editingHand.editIndex;
+        if (editIdx != null) {
+            setHands(prev => prev.map((h, i) => i === editIdx ? { ...d } : h));
+        } else {
+            setHands(prev => [...prev, { ...d }]);
+        }
         setEditingHand(null);
     };
 
@@ -585,7 +678,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         const winnerName = d.winner_name;
         const isDealerWinner = winnerWind === DEALER_WINDS[(d.hand_round_num || 1) - 1];
 
-        // 자동 점수 미리보기 + 계산 안 되는 이유
         let calcPreview = null;
         let calcReason = '';
         if (isDraw) {
@@ -598,7 +690,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             try {
                 const hasClass = d.score_class && d.score_class !== 'normal';
                 const hanNum = d.han ? parseInt(d.han) : 0;
-                const canAutoLimit = hanNum >= 5; // 5판 이상이면 부수 없이도 만관 이상 자동
+                const canAutoLimit = hanNum >= 5;
                 if (hasClass || (d.han && d.fu) || canAutoLimit) {
                     calcPreview = calcScore({
                         isDealerWinner,
@@ -617,10 +709,14 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         return (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-stretch md:items-center justify-center">
                 <div className="bg-white w-full max-w-md max-h-full overflow-y-auto md:rounded-2xl">
-                    {/* 헤더 */}
                     <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center">
                         <div>
-                            <div className="text-sm text-slate-500">{d.hand_wind}{d.hand_round_num}국{d.honba ? ` · ${d.honba}본장` : ''}</div>
+                            <div className="text-sm text-slate-500 flex items-center gap-2 flex-wrap">
+                                {editingHand.editIndex != null && (
+                                    <span className="px-1.5 py-0.5 bg-fuchsia-100 text-fuchsia-700 rounded text-[10px] font-bold">🛠 수정 중</span>
+                                )}
+                                <span>{d.hand_wind}{d.hand_round_num}국{d.honba ? ` · ${d.honba}본장` : ''}</span>
+                            </div>
                             <div className="text-lg font-black text-slate-900">
                                 {isDraw ? '유국' : `${winnerWind} ${winnerName} ${isDealerWinner ? '(친)' : ''} 화료`}
                             </div>
@@ -666,39 +762,54 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                             </div>
                         ) : (
                             <>
-                                {/* 화료 방식 - 더블론 모드면 쯔모 비활성화 */}
-                                <div>
-                                    <div className="text-sm font-bold text-slate-700 mb-2">방식{multiRonMode && <span className="text-[10px] font-normal text-fuchsia-600 ml-1">(더블론 모드: 론만 가능)</span>}</div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <button
-                                            type="button"
-                                            disabled={multiRonMode}
-                                            onClick={() => updateDraft({ win_type: 'tsumo', deal_in_name: '' })}
-                                            className={'py-3 rounded-lg font-bold border-2 ' + (multiRonMode ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : (d.win_type === 'tsumo' ? 'bg-green-500 text-white border-green-600' : 'bg-white text-slate-700 border-slate-200'))}
-                                        >🎴 쯔모</button>
-                                        <button
-                                            type="button"
-                                            onClick={() => updateDraft({ win_type: 'ron' })}
-                                            className={'py-3 rounded-lg font-bold border-2 ' + (d.win_type === 'ron' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-slate-700 border-slate-200')}
-                                        >🎯 론</button>
-                                    </div>
-                                </div>
+                                {(() => {
+                                    const lockWinType = multiRonMode || (editingHand.isMultiRon && editingHand.editIndex != null);
+                                    const lockHint = multiRonMode
+                                        ? '(더블론 모드: 론만 가능)'
+                                        : (editingHand.isMultiRon && editingHand.editIndex != null ? '(더블론 수정: 론 고정)' : '');
+                                    return (
+                                        <div>
+                                            <div className="text-sm font-bold text-slate-700 mb-2">방식{lockHint && <span className="text-[10px] font-normal text-fuchsia-600 ml-1">{lockHint}</span>}</div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <button
+                                                    type="button"
+                                                    disabled={lockWinType}
+                                                    onClick={() => updateDraft({ win_type: 'tsumo', deal_in_name: '' })}
+                                                    className={'py-3 rounded-lg font-bold border-2 ' + (lockWinType ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : (d.win_type === 'tsumo' ? 'bg-green-500 text-white border-green-600' : 'bg-white text-slate-700 border-slate-200'))}
+                                                >🎴 쯔모</button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => updateDraft({ win_type: 'ron' })}
+                                                    className={'py-3 rounded-lg font-bold border-2 ' + (d.win_type === 'ron' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-slate-700 border-slate-200')}
+                                                >🎯 론</button>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
 
-                                {/* 방총자 (론) */}
                                 {d.win_type === 'ron' && (
                                     <div>
-                                        <div className="text-sm font-bold text-slate-700 mb-2">방총자</div>
+                                        <div className="text-sm font-bold text-slate-700 mb-2">방총자{editingHand.lockedDealIn && <span className="text-[10px] font-normal text-fuchsia-600 ml-1">(더블론: 그룹 동일 — 잠금)</span>}</div>
                                         <div className="grid grid-cols-3 gap-2">
-                                            {seats.filter(s => s.name && s.name !== winnerName).map(s => (
-                                                <button key={s.wind} onClick={() => updateDraft({ deal_in_name: s.name })} className={'py-3 rounded-lg font-bold border-2 text-sm ' + (d.deal_in_name === s.name ? 'bg-rose-500 text-white border-rose-600' : 'bg-white text-slate-700 border-slate-200')}>
-                                                    {s.wind} {s.name}
-                                                </button>
-                                            ))}
+                                            {seats.filter(s => s.name && s.name !== winnerName).map(s => {
+                                                const locked = !!editingHand.lockedDealIn;
+                                                const selected = d.deal_in_name === s.name;
+                                                return (
+                                                    <button
+                                                        key={s.wind}
+                                                        type="button"
+                                                        disabled={locked}
+                                                        onClick={() => updateDraft({ deal_in_name: s.name })}
+                                                        className={'py-3 rounded-lg font-bold border-2 text-sm ' + (selected ? 'bg-rose-500 text-white border-rose-600' : 'bg-white text-slate-700 border-slate-200') + (locked && !selected ? ' opacity-40 cursor-not-allowed' : '') + (locked && selected ? ' cursor-not-allowed' : '')}
+                                                    >
+                                                        {s.wind} {s.name}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
 
-                                {/* 리치 (자리별) */}
                                 <div>
                                     <div className="text-sm font-bold text-slate-700 mb-2">리치 (시작 자리 기준 · −1000)</div>
                                     <div className="grid grid-cols-4 gap-2">
@@ -716,7 +827,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                     </div>
                                 </div>
 
-                                {/* 役 선택 - 판수별 필터 탭 + 후로 토글 */}
                                 <div>
                                     <div className="flex justify-between items-center mb-2">
                                         <div className="text-sm font-bold text-slate-700">役 선택</div>
@@ -729,7 +839,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                         </div>
                                     </div>
 
-                                    {/* 판수 필터 탭 */}
                                     <div className="flex gap-1 mb-2 overflow-x-auto">
                                         {['1판','2판','3판','6판','역만','더블역만'].filter(g => YAKU_BY_GROUP[g]).map(grp => {
                                             const selectedInGroup = (YAKU_BY_GROUP[grp] || []).filter(y => (d.yaku_list || []).includes(y.key)).length;
@@ -745,13 +854,11 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                         })}
                                     </div>
 
-                                    {/* 현재 그룹의 役 체크박스 - 후로일 때 멘젠한정 役 숨김 + 쿠이사가리 라벨 조정 */}
                                     <div className="flex flex-wrap gap-1 min-h-[3rem] border border-slate-100 rounded-lg p-2 bg-slate-50">
                                         {(YAKU_BY_GROUP[activeYakuGroup] || [])
                                             .filter(y => !(d.is_furo && y.menzenOnly))
                                             .map(y => {
                                                 const isReduced = d.is_furo && y.kuisagari;
-                                                // 2번: 현재 win_type 에서 무효한 役은 비활성 시각화
                                                 const disabledByWinType = d.win_type && y.winType && y.winType !== d.win_type;
                                                 return (
                                                     <label key={y.key} title={disabledByWinType ? `${y.winType === 'tsumo' ? '쯔모' : '론'} 전용 役` : ''} className={'px-2 py-1.5 rounded border text-[12px] ' + (disabledByWinType ? 'opacity-40 cursor-not-allowed bg-slate-100 border-slate-200 text-slate-400' : 'cursor-pointer ' + ((d.yaku_list || []).includes(y.key) ? 'bg-orange-100 border-orange-300 text-orange-800 font-bold' : 'bg-white border-slate-200 text-slate-600')) + (isReduced ? ' italic' : '')}>
@@ -765,11 +872,9 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                         )}
                                     </div>
 
-                                    {/* 충돌 안내 */}
                                     {yakuConflictMsg && (
                                         <div className="mt-1 text-[11px] text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1">{yakuConflictMsg}</div>
                                     )}
-                                    {/* 선택된 役 한 줄 요약 */}
                                     {(d.yaku_list || []).length > 0 && (
                                         <div className="mt-1 text-[11px] text-slate-500">
                                             선택: {(d.yaku_list || []).map(k => {
@@ -782,7 +887,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                         </div>
                                     )}
 
-                                    {/* 도라 카운터 (役 바로 아래, 컴팩트) */}
                                     <div className="mt-2 flex items-center justify-between gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5">
                                         <span className="text-xs font-bold text-slate-700">도라 <span className="text-[10px] font-normal text-slate-400">(적도라 포함)</span></span>
                                         <div className="flex items-center gap-1">
@@ -794,7 +898,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                         </div>
                                     </div>
 
-                                    {/* 우라도라 (리치 시) */}
                                     {(d.riichi_e || d.riichi_s || d.riichi_w || d.riichi_n) && (
                                         <div className="mt-2 flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
                                             <span className="text-xs font-bold text-amber-800">우라도라 <span className="text-[10px] font-normal text-amber-600">(리치 시)</span></span>
@@ -809,7 +912,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                     )}
                                 </div>
 
-                                {/* 판·부 또는 등급 - 컴팩트 (7번: 자동 결정 시 disable) */}
                                 {(() => {
                                     const hanNum = d.han ? parseInt(d.han) : 0;
                                     const hasClass = d.score_class && d.score_class !== 'normal';
@@ -842,9 +944,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                     );
                                 })()}
 
-
-
-                                {/* 자동 점수 */}
                                 {calcPreview && (
                                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
                                         <div className="text-xs text-amber-700">자동 점수</div>
@@ -859,7 +958,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                         )}
                     </div>
 
-                    {/* 버튼 영역 */}
                     <div className="sticky bottom-0 bg-white border-t border-slate-200 p-3 flex gap-2">
                         <button onClick={() => { setEditingHand(null); setYakuConflictMsg(''); }} className="flex-1 py-3 bg-slate-200 text-slate-700 rounded-lg font-bold">취소</button>
                         <button onClick={confirmHand} className="flex-1 py-3 bg-orange-500 text-white rounded-lg font-bold">확정</button>
@@ -871,9 +969,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
 
     // ===== Step 4: 종료 / 저장 =====
     const saveToDb = async () => {
-        // newPlayers 형태로 변환: rank, uma 자동 계산
         const finalScores = seats.map(s => ({ ...s, score: Math.round(autoResult.scores[s.name] || 25000) }));
-        // 등수 계산
         const sorted = [...finalScores].sort((a, b) => b.score - a.score);
         const umaBonus = [40, 10, -10, -20];
         sorted.forEach((p, i) => { p.calculatedRank = i + 1; p.calculatedUma = Number((((p.score - 30000) / 1000) + umaBonus[i]).toFixed(1)); });
@@ -882,10 +978,8 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             return { ...p, rank: found.calculatedRank, uma: found.calculatedUma };
         });
 
-        // 등급 카운트
         const cc = calcClassCounts(seatPlayers, hands);
 
-        // POST 페이로드
         const payload = {
             date,
             players: finalScoresWithRank.map(p => ({
@@ -903,7 +997,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                 doubleyakuman: cc[p.name]?.doubleyakuman || 0,
             })),
             hands: hands.filter(h => h.win_type).map((h, i, arr) => {
-                // 같은 hand_number 그룹에서의 순번 = multi_index
                 const multiIdx = arr.slice(0, i + 1).filter(x => x.hand_number === h.hand_number).length;
                     const isDealer = h._winnerWind === DEALER_WINDS[(h.hand_round_num || 1) - 1];
                     let calc = null;
@@ -969,7 +1062,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                 body: JSON.stringify(payload),
             });
             if (res.ok) {
-                clearDraft(); // 8번: DB 저장 성공 시 임시저장 자동 정리
+                clearDraft();
                 alert('저장 완료!');
                 if (onSaved) onSaved();
                 onClose();
@@ -1031,7 +1124,6 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                 {step === 'play' && renderPlay()}
                 {step === 'done' && renderDone()}
                 {renderModal()}
-                {/* 8번: 임시저장 복원 모달 */}
                 {restorePrompt && (
                     <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
                         <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl">
