@@ -376,8 +376,16 @@ export default function App() {
         ];
 
         const minMatchesInfo = (() => {
+            // 전체 모드: 2026년 6월부터 40국 시작, 매월 +5국 누적 증가
+            if (globalYear === 'all') {
+                const baseYear = 2026, baseMonth = 6, baseMin = 40, incPerMonth = 5;
+                const now = new Date();
+                const elapsed = (now.getFullYear() - baseYear) * 12 + (now.getMonth() + 1 - baseMonth);
+                const min = baseMin + Math.max(0, elapsed) * incPerMonth;
+                return { min, label: `전체 기록 · ${min}국 이상 기준 (2026년 6월부터 매월 +5국)` };
+            }
             const year = parseInt(globalYear);
-            if (year <= 2025) return { min: 10, label: '10국 이상 기준' };
+            if (year <= 2025) return { min: 10, label: `${year}년 · 10국 이상 기준` };
             const currentMonth = new Date().getMonth() + 1; // 1~12
             const monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
             const min = 5 * currentMonth;
@@ -1606,5 +1614,5 @@ export default function App() {
                 </div>
             </main>
         </div>
-   );
+    );
 }
