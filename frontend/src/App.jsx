@@ -44,6 +44,7 @@ export default function App() {
     const emptyPlayerRow = { name: '', score: '', mangan: '', haneman: '', baiman: '', sanbaiman: '', yakuman: '', kazoeyakuman: '', doubleyakuman: '' };
     const [newRecordDate, setNewRecordDate] = useState(getTodayString());
     const [editingRound, setEditingRound] = useState(null);
+    const [editingRoundHands, setEditingRoundHands] = useState([]); // DB 원본 hand 목록 (진행 내역 표시용)
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [newPlayers, setNewPlayers] = useState([
         { ...emptyPlayerRow, wind: '동' },
@@ -324,6 +325,7 @@ export default function App() {
         if (window.confirm(editingRound ? '수정 중인 내용을 취소하시겠습니까?' : '입력된 모든 경기 기록을 초기화하시겠습니까?')) {
             setNewRecordDate(getTodayString());
             setEditingRound(null);
+            setEditingRoundHands([]);
             setNewPlayers([
                 { ...emptyPlayerRow, wind: '동' },
                 { ...emptyPlayerRow, wind: '남' },
@@ -734,6 +736,8 @@ export default function App() {
         } catch (e) {
             console.error('hand fetch 실패', e);
         }
+        // 진행 내역 표시용 원본 보관 (다듬지 않은 그대로)
+        setEditingRoundHands(Array.isArray(handsFromDb) ? handsFromDb : []);
         const minRows = Math.max(8, handsFromDb.length);
         const mappedHands = Array.from({ length: minRows }, (_, i) => {
             const existing = handsFromDb.find(h => h.hand_number === i + 1);
@@ -1311,6 +1315,79 @@ export default function App() {
                             </span>
                         )}
                     </div>
+
+                    {editingRound && editingRoundHands.length > 0 && (() => {
+                        const ABORT = { kyuushu: '구종구패', sufon: '사풍연타', suucha_riichi: '사가리치', suukantsu: '사깡산료' };
+                        const CLS = { mangan: '만관', haneman: '하네만', baiman: '배만', sanbaiman: '삼배만', yakuman: '역만', kazoe_yakuman: '헤아림역만', double_yakuman: '더블역만', triple_yakuman: '삼중역만' };
+                        const groups = {}; const order = [];
+                        for (const h of editingRoundHands) {
+                            if (!(h.hand_number in groups)) { groups[h.hand_number] = []; order.push(h.hand_number); }
+                            groups[h.hand_number].push(h);
+                        }
+                        return (
+                            <div className="mb-6 bg-slate-50 rounded-xl p-4 border border-slate-200">
+                                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                                    <h3 className="text-lg font-bold text-slate-800">📋 진행 내역 ({editingRoundHands.length}국)</h3>
+                                    <span className="text-xs text-slate-400">한 국씩 입력으로 저장된 상세 기록 · 보기 전용</span>
+                                </div>
+                                <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                                    {order.map(hn => {
+                                        const grp = groups[hn];
+                                        const first = grp[0];
+                                        const isMulti = grp.length > 1 && grp.every(g => g.win_type === 'ron');
+                                        return (
+                                            <div key={hn} className="bg-white border border-slate-200 rounded-lg p-3">
+                                                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                    <span className="text-sm font-bold text-slate-700">{first.hand_wind}{first.hand_round_num}국</span>
+                                                    {(first.honba || 0) > 0 && <span className="text-xs text-orange-600 font-bold">{first.honba}본장</span>}
+                                                    {isMulti && <span className="px-1.5 py-0.5 bg-fuchsia-100 text-fuchsia-700 rounded text-[10px] font-bold">더블론 {grp.length}명</span>}
+                                                </div>
+                                                <div className="space-y-1">
+                                                    {grp.map((h, idx) => {
+                                                        if (h.win_type === 'draw') {
+                                                            const nag = ['e','s','w','n'].find(w => h['nagashi_'+w]);
+                                                            if (nag) {
+                                                                const windName = { e: '동', s: '남', w: '서', n: '북' }[nag];
+                                                                return <div key={idx} className="text-sm text-pink-700 font-medium">유국만관 ({windName} 자리)</div>;
+                                                            }
+                                                            const tenpais = [['e','동'],['s','남'],['w','서'],['n','북']].filter(([k]) => h['tenpai_'+k]).map(([,n]) => n);
+                                                            return <div key={idx} className="text-sm text-slate-600">유국 {tenpais.length > 0 ? `(텐파이: ${tenpais.join(', ')})` : '(전원 노텐)'}</div>;
+                                                        }
+                                                        if (h.win_type === 'abortion') return <div key={idx} className="text-sm text-amber-700">도중유국 ({ABORT[h.abortion_type] || h.abortion_type})</div>;
+                                                        if (h.win_type === 'chombo') return <div key={idx} className="text-sm text-rose-700">촌보 — {h.chombo_player} (−9,000)</div>;
+                                                        const cls = h.score_class && h.score_class !== 'normal' ? CLS[h.score_class] : '';
+                                                        const hf = (!cls && h.han && h.fu) ? `${h.han}판${h.fu}부` : '';
+                                                        const hanOnly = (!cls && !hf && h.han) ? `${h.han}판` : '';
+                                                        const scoreLabel = cls || hf || hanOnly || '';
+                                                        const winType = h.win_type === 'tsumo' ? '쯔모' : `론(${h.deal_in_name})`;
+                                                        const ptTotal = h.point_total != null ? Number(h.point_total).toLocaleString() : '';
+                                                        const extras = [];
+                                                        if (h.is_riichi) extras.push('리치');
+                                                        if (h.is_ippatsu) extras.push('일발');
+                                                        if ((h.dora_count || 0) > 0) extras.push(`도라${h.dora_count}`);
+                                                        if ((h.ura_dora_count || 0) > 0) extras.push(`우라${h.ura_dora_count}`);
+                                                        return (
+                                                            <div key={idx} className="text-sm text-slate-700">
+                                                                <span className="font-bold">{h.winner_name}</span> {winType}
+                                                                {scoreLabel && <span className="ml-2 text-xs px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded font-bold">{scoreLabel}</span>}
+                                                                {ptTotal && <span className="ml-2 text-xs text-green-700 font-bold">+{ptTotal}</span>}
+                                                                {extras.length > 0 && <span className="ml-2 text-[11px] text-slate-500">({extras.join(', ')})</span>}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })()}
+                    {editingRound && editingRoundHands.length === 0 && (
+                        <div className="mb-6 bg-slate-100 rounded-lg p-3 border border-slate-200 text-sm text-slate-500">
+                            ℹ️ 이 라운드는 '결과만 등록'으로 저장되어 진행 내역(hand 데이터)이 없습니다.
+                        </div>
+                    )}
 
                     <div className="flex gap-3">
                         <button
