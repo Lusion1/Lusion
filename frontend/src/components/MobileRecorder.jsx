@@ -460,8 +460,16 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
 
                 <label className={'flex items-center justify-between gap-2 px-3 py-2 rounded-lg border-2 cursor-pointer ' + (multiRonMode ? 'border-fuchsia-500 bg-fuchsia-50' : 'border-slate-200 bg-white')}>
                     <span className="text-sm font-bold">{multiRonMode ? '🎯 더블론 모드 ON' : '더블론 모드 OFF'}</span>
-                    <input type="checkbox" className="sr-only" checked={multiRonMode} onChange={e => setMultiRonMode(e.target.checked)} />
-                    <span className="text-[10px] text-slate-500">{multiRonMode ? '같은 hand 로 묶이고 방총자 동일' : '켜고 카드 N개 차례로 탭'}</span>
+                    <input type="checkbox" className="sr-only" checked={multiRonMode} onChange={e => {
+                        if (e.target.checked && hands.length > 0) {
+                            const last = hands[hands.length - 1];
+                            if (last.win_type === 'ron') {
+                                if (!window.confirm('⚠ 직전 hand 가 화료(ron) 입니다.\n\n더블론은 첫 화료자 입력 전에 모드를 켜야 자리별 리치/점수가 정확히 기록됩니다.\n\n[권장] 취소 → [↶ 무르기] 로 직전 hand 취소 → 더블론 ON → 처음부터 다시 입력\n\n그래도 이대로 모드만 켜시려면 [확인].')) return;
+                            }
+                        }
+                        setMultiRonMode(e.target.checked);
+                    }} />
+                    <span className="text-[10px] text-slate-500">{multiRonMode ? '같은 hand 로 묶임 · 방총자/리치 동일' : '⚠ 첫 화료 전에 켜야 정확'}</span>
                 </label>
 
                 <div className="flex gap-2">
