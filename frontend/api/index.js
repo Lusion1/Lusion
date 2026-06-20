@@ -535,6 +535,7 @@ app.get('/api/daily-stats', async (req, res) => {
 
 // ===== 건의 게시판 (suggestions) =====
 const VALID_SUGGESTION_STATUS = ['pending', 'received', 'done', 'rejected'];
+const VALID_SUGGESTION_CATEGORY = ['inquiry', 'update'];
 
 // 목록 조회 (누구나) — 상태 필터 + 페이지네이션
 app.get('/api/suggestions', async (req, res) => {
@@ -542,14 +543,20 @@ app.get('/api/suggestions', async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 50, 200);
     const offset = parseInt(req.query.offset) || 0;
     const status = req.query.status;
+    const category = req.query.category;
     const params = [limit, offset];
-    let where = '';
+    const conds = [];
     if (status && VALID_SUGGESTION_STATUS.includes(status)) {
-      where = 'WHERE status = $3';
+      conds.push('status = $' + (params.length + 1));
       params.push(status);
     }
+    if (category && VALID_SUGGESTION_CATEGORY.includes(category)) {
+      conds.push('category = $' + (params.length + 1));
+      params.push(category);
+    }
+    const where = conds.length ? ('WHERE ' + conds.join(' AND ')) : '';
     const result = await pool.query(
-      `SELECT id, nickname, title, content, status,
+      `SELECT id, nickname, title, content, status, category,
               created_at, updated_at,
               admin_reply, admin_reply_by, admin_reply_at, created_by
          FROM suggestions ${where}
@@ -567,7 +574,7 @@ app.get('/api/suggestions/:id', async (req, res) => {
     const id = parseInt(req.params.id);
     if (!id) return res.status(400).send('Invalid id');
     const result = await pool.query(
-      `SELECT id, nickname, title, content, status,
+      `SELECT id, nickname, title, content, status, category,
               created_at, updated_at,
               admin_reply, admin_reply_by, admin_reply_at, created_by
          FROM suggestions WHERE id = $1`,
@@ -581,18 +588,24 @@ app.get('/api/suggestions/:id', async (req, res) => {
 // 작성 (로그인 필요 — admin/user 모두 가능)
 app.post('/api/suggestions', checkAuth, async (req, res) => {
   try {
-    const { nickname, title, content } = req.body;
+    const { nickname, title, content, category } = req.body;
     if (!nickname || !nickname.trim()) return res.status(400).send('닉네임을 입력해주세요.');
     if (!title || !title.trim()) return res.status(400).send('제목을 입력해주세요.');
     if (!content || !content.trim()) return res.status(400).send('내용을 입력해주세요.');
     if (nickname.length > 50) return res.status(400).send('닉네임은 50자 이내');
     if (title.length > 200) return res.status(400).send('제목은 200자 이내');
     if (content.length > 5000) return res.status(400).send('내용은 5000자 이내');
+    // 카테고리 결정: update 는 관리자만, 그 외는 inquiry
+    let cat = 'inquiry';
+    if (category === 'update') {
+      if (req.user?.role !== 'admin') return res.status(403).send('업데이트는 관리자만 작성 가능합니다.');
+      cat = 'update';
+    }
     const result = await pool.query(
-      `INSERT INTO suggestions (nickname, title, content, status, created_by)
-       VALUES ($1, $2, $3, 'pending', $4)
-       RETURNING id, nickname, title, content, status, created_at, updated_at, created_by`,
-      [nickname.trim(), title.trim(), content.trim(), req.user?.id || null]
+      `INSERT INTO suggestions (nickname, title, content, status, category, created_by)
+       VALUES ($1, $2, $3, 'pending', $4, $5)
+       RETURNING id, nickname, title, content, status, category, created_at, updated_at, created_by`,
+      [nickname.trim(), title.trim(), content.trim(), cat, req.user?.id || null]
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).send(err.toString()); }
