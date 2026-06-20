@@ -460,7 +460,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
 
                 <label className={'flex items-center justify-between gap-2 px-3 py-2 rounded-lg border-2 cursor-pointer ' + (multiRonMode ? 'border-fuchsia-500 bg-fuchsia-50' : 'border-slate-200 bg-white')}>
                     <span className="text-sm font-bold">{multiRonMode ? '🎯 더블론 모드 ON' : '더블론 모드 OFF'}</span>
-                    <input type="checkbox" className="sr-only" checked={multiRonMode} onChange={e => { setMultiRonMode(e.target.checked); if (!e.target.checked) setPendingRiichi({ e: false, s: false, w: false, n: false }); }} />
+                    <input type="checkbox" className="sr-only" checked={multiRonMode} onChange={e => setMultiRonMode(e.target.checked)} />
                     <span className="text-[10px] text-slate-500">{multiRonMode ? '같은 hand 로 묶이고 방총자 동일' : '켜고 카드 N개 차례로 탭'}</span>
                 </label>
 
