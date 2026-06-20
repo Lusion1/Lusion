@@ -100,7 +100,10 @@ app.get('/api/stats', async (req, res) => {
           COUNT(CASE WHEN hr.winner_name  = mr.player_name THEN 1 END) AS win_count,
           COUNT(CASE WHEN hr.winner_name  = mr.player_name AND hr.win_type = 'tsumo' THEN 1 END) AS tsumo_count,
           COUNT(CASE WHEN hr.winner_name  = mr.player_name AND hr.win_type = 'ron'   THEN 1 END) AS ron_count,
-          COUNT(CASE WHEN hr.deal_in_name = mr.player_name THEN 1 END) AS deal_in_count
+          COUNT(CASE WHEN hr.deal_in_name = mr.player_name THEN 1 END) AS deal_in_count,
+          COUNT(CASE WHEN hr.winner_name = mr.player_name AND hr.is_furo IS TRUE THEN 1 END) AS furo_wins,
+          COUNT(CASE WHEN hr.winner_name = mr.player_name AND hr.is_furo IS FALSE THEN 1 END) AS menzen_wins,
+          COUNT(CASE WHEN hr.winner_name = mr.player_name AND hr.is_furo IS NOT NULL THEN 1 END) AS furo_known_wins
         FROM match_results mr
         LEFT JOIN hand_results hr ON hr.match_round = mr.round
         ${whereClauseHandMR}
@@ -145,11 +148,16 @@ app.get('/api/stats', async (req, res) => {
         CASE WHEN COALESCE(ha.hands_participated,0) > 0 THEN ha.win_count::decimal     / ha.hands_participated ELSE NULL END as win_rate,
         CASE WHEN COALESCE(ha.hands_participated,0) > 0 THEN ha.tsumo_count::decimal   / ha.hands_participated ELSE NULL END as tsumo_rate,
         CASE WHEN COALESCE(ha.hands_participated,0) > 0 THEN ha.ron_count::decimal     / ha.hands_participated ELSE NULL END as ron_rate,
-        CASE WHEN COALESCE(ha.hands_participated,0) > 0 THEN ha.deal_in_count::decimal / ha.hands_participated ELSE NULL END as deal_in_rate
+        CASE WHEN COALESCE(ha.hands_participated,0) > 0 THEN ha.deal_in_count::decimal / ha.hands_participated ELSE NULL END as deal_in_rate,
+        COALESCE(ha.furo_wins, 0) as furo_wins,
+        COALESCE(ha.menzen_wins, 0) as menzen_wins,
+        COALESCE(ha.furo_known_wins, 0) as furo_known_wins,
+        CASE WHEN COALESCE(ha.furo_known_wins, 0) > 0 THEN ha.furo_wins::decimal   / ha.furo_known_wins ELSE NULL END as furo_rate,
+        CASE WHEN COALESCE(ha.furo_known_wins, 0) > 0 THEN ha.menzen_wins::decimal / ha.furo_known_wins ELSE NULL END as menzen_rate
       FROM match_results mr
       LEFT JOIN hand_agg ha ON ha.player_name = mr.player_name
       ${whereClauseMR}
-      GROUP BY mr.player_name, ha.hands_participated, ha.win_count, ha.tsumo_count, ha.ron_count, ha.deal_in_count
+      GROUP BY mr.player_name, ha.hands_participated, ha.win_count, ha.tsumo_count, ha.ron_count, ha.deal_in_count, ha.furo_wins, ha.menzen_wins, ha.furo_known_wins
       ORDER BY total_matches DESC
     `, params);
     res.json(result.rows);
@@ -264,7 +272,7 @@ async function insertHands(client, hands, matchRound, matchDate) {
        riichi_e, riichi_s, riichi_w, riichi_n,
        abortion_type, chombo_player,
        nagashi_e, nagashi_s, nagashi_w, nagashi_n,
-       multi_index)
+       multi_index, is_furo)
     VALUES ($1,  $2,  $3,  $4,  $5,
             $6,  $7,  $8,  $9,
             $10, $11, $12, $13, $14,
@@ -275,7 +283,7 @@ async function insertHands(client, hands, matchRound, matchDate) {
             $29, $30, $31, $32,
             $33, $34,
             $35, $36, $37, $38,
-            $39)
+            $39, $40)
   `;
   const toIntOrNull = (v) => (v == null || v === '' ? null : parseInt(v));
   const toBool = (v) => v === true || v === 'true';
@@ -321,6 +329,7 @@ async function insertHands(client, hands, matchRound, matchDate) {
       toBool(h.nagashi_w),
       toBool(h.nagashi_n),
       parseInt(h.multi_index) || 1, // 더블론/트리플론 그룹 내 순번 (1, 2, 3...)
+      h.is_furo == null ? null : !!h.is_furo, // 후로 여부 (null=정보 없음, true/false)
     ]);
   }
 }
@@ -398,7 +407,8 @@ app.get('/api/records/:round/hands', async (req, res) => {
               tenpai_e, tenpai_s, tenpai_w, tenpai_n,
               riichi_e, riichi_s, riichi_w, riichi_n,
               abortion_type, chombo_player,
-              nagashi_e, nagashi_s, nagashi_w, nagashi_n
+              nagashi_e, nagashi_s, nagashi_w, nagashi_n,
+              is_furo
          FROM hand_results
         WHERE match_round = $1
         ORDER BY hand_number ASC`,
@@ -430,6 +440,7 @@ app.get('/api/hand-stats', async (req, res) => {
           hr.point_total,
           hr.score_class,
           hr.is_ippatsu,
+          hr.is_furo,
           CASE mr.wind WHEN '동' THEN hr.tenpai_e WHEN '남' THEN hr.tenpai_s
                        WHEN '서' THEN hr.tenpai_w WHEN '북' THEN hr.tenpai_n END AS my_tenpai,
           CASE mr.wind WHEN '동' THEN hr.riichi_e WHEN '남' THEN hr.riichi_s
@@ -456,7 +467,10 @@ app.get('/api/hand-stats', async (req, res) => {
         COUNT(*) FILTER (WHERE my_riichi)                                       AS riichi_count,
         COUNT(*) FILTER (WHERE my_riichi AND winner_name = player_name)         AS riichi_win_count,
         COUNT(*) FILTER (WHERE my_riichi AND winner_name = player_name AND is_ippatsu)        AS riichi_ippatsu_count,
-        COUNT(*) FILTER (WHERE my_riichi AND winner_name = player_name AND win_type = 'tsumo') AS riichi_tsumo_count
+        COUNT(*) FILTER (WHERE my_riichi AND winner_name = player_name AND win_type = 'tsumo') AS riichi_tsumo_count,
+        COUNT(*) FILTER (WHERE winner_name = player_name AND is_furo IS NOT NULL) AS furo_known_wins,
+        COUNT(*) FILTER (WHERE winner_name = player_name AND is_furo IS TRUE) AS furo_wins,
+        COUNT(*) FILTER (WHERE winner_name = player_name AND is_furo IS FALSE) AS menzen_wins
       FROM hand_player
       GROUP BY player_name
       ORDER BY total_hands DESC
