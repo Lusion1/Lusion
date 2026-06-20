@@ -375,6 +375,8 @@ export default function App() {
             { title: '📉 나락의 끝', item: '종료시 최저점', key: 'min_score', sort: 'asc', format: v => v === null ? '-' : Number(v).toLocaleString() },
             { title: '😭 억울한 2등', item: '2위 최고점', key: 'max_score_rank2', sort: 'desc', format: v => v === null ? '-' : Number(v).toLocaleString() },
             { title: '💸 기부천사', item: '토비율', key: 'tobi_rate', sort: 'desc', format: v => `${(v * 100).toFixed(1)}%` },
+            { title: '🃏 후로의 정석', item: '후로율 (화료 중)', key: 'furo_rate', sort: 'desc', format: v => v == null ? '-' : `${(v * 100).toFixed(1)}%` },
+            { title: '🀫 멘젠의 장인', item: '멘젠율 (화료 중)', key: 'menzen_rate', sort: 'desc', format: v => v == null ? '-' : `${(v * 100).toFixed(1)}%` },
         ];
 
         const minMatchesInfo = (() => {
