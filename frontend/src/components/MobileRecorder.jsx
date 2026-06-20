@@ -871,23 +871,39 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                             </div>
                         ) : (
                             <>
-                                {/* 손패 형태 (멘젠/후로) — 모달 상단 핵심 선택 */}
-                                <div>
-                                    <div className="text-sm font-bold text-slate-700 mb-2">손패 형태 {d.is_furo === null && <span className="text-[10px] font-normal text-rose-500 ml-1">(선택 필수)</span>}</div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => updateDraft({ is_furo: false })}
-                                            className={'py-3 rounded-lg font-bold border-2 text-base ' + (d.is_furo === false ? 'bg-slate-800 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200')}
-                                        >🀫 멘젠 (門前)</button>
-                                        <button
-                                            type="button"
-                                            onClick={() => updateDraft({ is_furo: true })}
-                                            className={'py-3 rounded-lg font-bold border-2 text-base ' + (d.is_furo === true ? 'bg-amber-500 text-white border-amber-600' : 'bg-white text-slate-700 border-slate-200')}
-                                        >🃏 후로 (副露)</button>
-                                    </div>
-                                    <div className="text-[10px] text-slate-400 mt-1">멘젠 = 폰/치 안 함 · 후로 = 폰/치/명깡 있음. 役 자동 차단/쿠이사가리 적용</div>
-                                </div>
+                                {/* 손패 형태 (멘젠/후로) — 모달 상단 핵심 선택. 리치 자리는 후로 차단 */}
+                                {(() => {
+                                    const winnerRiichiOn = winnerWind && d['riichi_' + WIND_TO_FIELD[winnerWind]];
+                                    const hasRiichiYaku = (d.yaku_list || []).includes('riichi');
+                                    const isFuroBlocked = !!(winnerRiichiOn || hasRiichiYaku);
+                                    return (
+                                        <div>
+                                            <div className="text-sm font-bold text-slate-700 mb-2">
+                                                손패 형태
+                                                {d.is_furo === null && !isFuroBlocked && <span className="text-[10px] font-normal text-rose-500 ml-1">(선택 필수)</span>}
+                                                {isFuroBlocked && <span className="text-[10px] font-normal text-amber-700 ml-1">(리치 선언자 → 멘젠 고정)</span>}
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => updateDraft({ is_furo: false })}
+                                                    className={'py-3 rounded-lg font-bold border-2 text-base ' + (d.is_furo === false ? 'bg-slate-800 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200')}
+                                                >🀫 멘젠 (門前)</button>
+                                                <button
+                                                    type="button"
+                                                    disabled={isFuroBlocked}
+                                                    onClick={() => updateDraft({ is_furo: true })}
+                                                    className={'py-3 rounded-lg font-bold border-2 text-base ' + (isFuroBlocked ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through' : (d.is_furo === true ? 'bg-amber-500 text-white border-amber-600' : 'bg-white text-slate-700 border-slate-200'))}
+                                                >🃏 후로 (副露)</button>
+                                            </div>
+                                            <div className="text-[10px] text-slate-400 mt-1">
+                                                {isFuroBlocked
+                                                    ? '리치는 멘젠 한정 役이라 후로(폰/치/명깡)와 양립 불가'
+                                                    : '멘젠 = 폰/치 안 함 · 후로 = 폰/치/명깡 있음. 役 자동 차단/쿠이사가리 적용'}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
 
                                 {(() => {
                                     const lockWinType = multiRonMode || (editingHand.isMultiRon && editingHand.editIndex != null);
