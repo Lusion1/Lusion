@@ -19,11 +19,12 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
     const isAdmin = userRole === 'admin';
     const [items, setItems] = useState([]);
     const [filterStatus, setFilterStatus] = useState('all');
+    const [filterCategory, setFilterCategory] = useState('all');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
     const [writeModal, setWriteModal] = useState(false);
-    const [writeForm, setWriteForm] = useState({ nickname: '', title: '', content: '' });
+    const [writeForm, setWriteForm] = useState({ nickname: '', title: '', content: '', category: 'inquiry' });
     const [submitting, setSubmitting] = useState(false);
 
     const [detailItem, setDetailItem] = useState(null);
@@ -34,9 +35,10 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
         setLoading(true);
         setError('');
         try {
-            const url = filterStatus === 'all'
-                ? '/api/suggestions?limit=200'
-                : `/api/suggestions?limit=200&status=${filterStatus}`;
+            const qs = ['limit=200'];
+            if (filterStatus !== 'all') qs.push('status=' + filterStatus);
+            if (filterCategory !== 'all') qs.push('category=' + filterCategory);
+            const url = '/api/suggestions?' + qs.join('&');
             const res = await fetch(url);
             if (!res.ok) throw new Error('목록 조회 실패: ' + res.status);
             const data = await res.json();
@@ -48,11 +50,11 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
         }
     };
 
-    useEffect(() => { fetchList(); /* eslint-disable-next-line */ }, [filterStatus]);
+    useEffect(() => { fetchList(); /* eslint-disable-next-line */ }, [filterStatus, filterCategory]);
 
     // 작성 모달 열 때 닉네임 기본값 = 로그인 ID
     const openWrite = () => {
-        setWriteForm({ nickname: userLoginId || '', title: '', content: '' });
+        setWriteForm({ nickname: userLoginId || '', title: '', content: '', category: 'inquiry' });
         setWriteModal(true);
     };
 
@@ -66,7 +68,7 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
             const res = await fetch('/api/suggestions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-                body: JSON.stringify({ nickname: nickname.trim(), title: title.trim(), content: content.trim() }),
+                body: JSON.stringify({ nickname: nickname.trim(), title: title.trim(), content: content.trim(), category: writeForm.category }),
             });
             if (!res.ok) {
                 const msg = await res.text();
@@ -183,13 +185,32 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
         <div className="p-4 md:p-6 max-w-4xl mx-auto">
             {/* 헤더 */}
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-slate-800">📮 문의사항</h2>
+                <h2 className="text-2xl font-bold text-slate-800">📢 업데이트 & 문의</h2>
                 <button
                     onClick={openWrite}
                     className="px-4 py-2 bg-orange-500 text-white rounded-lg font-bold hover:bg-orange-600"
                 >
-                    + 새 문의사항 작성
+                    + 새 글 작성
                 </button>
+            </div>
+
+            {/* 카테고리 필터 */}
+            <div className="flex gap-2 mb-3">
+                {[
+                    { key: 'all', label: '전체', emoji: '' },
+                    { key: 'update', label: '업데이트', emoji: '📢' },
+                    { key: 'inquiry', label: '문의', emoji: '📮' },
+                ].map(c => (
+                    <button
+                        key={c.key}
+                        onClick={() => setFilterCategory(c.key)}
+                        className={'px-3 py-1.5 rounded-lg text-sm font-bold border-2 transition ' + (filterCategory === c.key
+                            ? (c.key === 'update' ? 'bg-blue-500 text-white border-blue-600' : (c.key === 'inquiry' ? 'bg-orange-500 text-white border-orange-600' : 'bg-slate-900 text-white border-slate-900'))
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300')}
+                    >
+                        {c.emoji} {c.label}
+                    </button>
+                ))}
             </div>
 
             {/* 필터 탭 */}
@@ -224,7 +245,7 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
             {!loading && items.length === 0 && (
                 <div className="text-center py-10 text-slate-400">
                     <div className="text-4xl mb-2">📭</div>
-                    <div className="text-sm">등록된 문의사항이 없습니다.</div>
+                    <div className="text-sm">등록된 글이 없습니다.</div>
                 </div>
             )}
 
@@ -242,6 +263,8 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                                         <span className={'text-[10px] font-bold border rounded px-1.5 py-0.5 ' + sInfo.badge}>{sInfo.label}</span>
+                                        {it.category === 'update' && <span className="text-[10px] font-bold border border-blue-300 bg-blue-100 text-blue-700 rounded px-1.5 py-0.5">📢 업데이트</span>}
+                                        {it.category === 'inquiry' && <span className="text-[10px] font-bold border border-orange-300 bg-orange-100 text-orange-700 rounded px-1.5 py-0.5">📮 문의</span>}
                                         {hasReply && <span className="text-[10px] font-bold text-green-700">✓ 답글</span>}
                                         <span className="font-bold text-slate-800 truncate">{it.title}</span>
                                     </div>
@@ -260,10 +283,28 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-stretch md:items-center justify-center p-0 md:p-4">
                     <div className="bg-white w-full max-w-lg max-h-full overflow-y-auto md:rounded-2xl">
                         <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center">
-                            <h3 className="text-lg font-bold text-slate-800">✏ 새 문의사항 작성</h3>
+                            <h3 className="text-lg font-bold text-slate-800">✏ 새 글 작성</h3>
                             <button onClick={() => setWriteModal(false)} className="text-slate-400 text-2xl">×</button>
                         </div>
                         <div className="p-4 space-y-3">
+                            {isAdmin && (
+                                <div>
+                                    <label className="text-xs font-bold text-slate-600">카테고리</label>
+                                    <div className="flex gap-2 mt-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => setWriteForm(f => ({ ...f, category: 'inquiry' }))}
+                                            className={'flex-1 py-2 rounded-lg text-sm font-bold border-2 ' + (writeForm.category === 'inquiry' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-slate-600 border-slate-200')}
+                                        >📮 문의</button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setWriteForm(f => ({ ...f, category: 'update' }))}
+                                            className={'flex-1 py-2 rounded-lg text-sm font-bold border-2 ' + (writeForm.category === 'update' ? 'bg-blue-500 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200')}
+                                        >📢 업데이트</button>
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 mt-1">업데이트는 관리자만 작성 가능 (사이트 변경/패치 공지용)</div>
+                                </div>
+                            )}
                             <div>
                                 <label className="text-xs font-bold text-slate-600">닉네임 (필수)</label>
                                 <input
@@ -315,6 +356,8 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
                             <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center gap-2">
                                 <div className="flex items-center gap-2 min-w-0">
                                     <span className={'text-[10px] font-bold border rounded px-1.5 py-0.5 shrink-0 ' + sInfo.badge}>{sInfo.label}</span>
+                                    {detailItem.category === 'update' && <span className="text-[10px] font-bold border border-blue-300 bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 shrink-0">📢 업데이트</span>}
+                                    {detailItem.category === 'inquiry' && <span className="text-[10px] font-bold border border-orange-300 bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 shrink-0">📮 문의</span>}
                                     <h3 className="text-base md:text-lg font-bold text-slate-800 truncate">{detailItem.title}</h3>
                                 </div>
                                 <button onClick={() => setDetailItem(null)} className="text-slate-400 text-2xl shrink-0">×</button>
