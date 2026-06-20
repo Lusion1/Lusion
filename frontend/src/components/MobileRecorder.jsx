@@ -96,6 +96,9 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
     const [activeYakuGroup, setActiveYakuGroup] = useState('1판');
     const [yakuConflictMsg, setYakuConflictMsg] = useState('');
     const [multiRonMode, setMultiRonMode] = useState(false);
+    const [pendingRiichi, setPendingRiichi] = useState({ e: false, s: false, w: false, n: false });
+    const [suuchaConfirm, setSuuchaConfirm] = useState(false);
+    const [showFuGuide, setShowFuGuide] = useState(false); // 부수 계산 안내 펼침 상태
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // 8번: 브라우저 임시저장 (localStorage)
@@ -118,10 +121,16 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         if (!hands || hands.length === 0) return;
         try {
             localStorage.setItem(DRAFT_KEY, JSON.stringify({
-                date, seats, hands, multiRonMode, savedAt: new Date().toISOString(),
+                date, seats, hands, multiRonMode, pendingRiichi, savedAt: new Date().toISOString(),
             }));
         } catch {}
-    }, [step, date, seats, hands, multiRonMode]);
+    }, [step, date, seats, hands, multiRonMode, pendingRiichi]);
+
+    // 4명 모두 리치 토글 시 사가리치 확인 모달 자동 표시
+    useEffect(() => {
+        const all4 = pendingRiichi.e && pendingRiichi.s && pendingRiichi.w && pendingRiichi.n;
+        if (all4) setSuuchaConfirm(true);
+    }, [pendingRiichi]);
 
     const clearDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch {} };
 
@@ -131,6 +140,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         setSeats(restorePrompt.seats);
         setHands(restorePrompt.hands);
         setMultiRonMode(!!restorePrompt.multiRonMode);
+        if (restorePrompt.pendingRiichi) setPendingRiichi(restorePrompt.pendingRiichi);
         setStep('play');
         setRestorePrompt(null);
     };
@@ -231,9 +241,9 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                 dora_count: 0,
                 aka_dora_count: 0,
                 ura_dora_count: 0,
-                yaku_list: [],
+                yaku_list: (winnerWind && pendingRiichi[WIND_TO_FIELD[winnerWind]]) ? ['riichi'] : [],
                 yaku_text: '',
-                riichi_e: false, riichi_s: false, riichi_w: false, riichi_n: false,
+                riichi_e: pendingRiichi.e, riichi_s: pendingRiichi.s, riichi_w: pendingRiichi.w, riichi_n: pendingRiichi.n,
                 tenpai_e: false, tenpai_s: false, tenpai_w: false, tenpai_n: false,
                 nagashi_e: false, nagashi_s: false, nagashi_w: false, nagashi_n: false,
                 is_furo: false,
@@ -259,6 +269,9 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             riichi_w: abortionType === 'suucha_riichi',
             riichi_n: abortionType === 'suucha_riichi',
         }]);
+        if (abortionType === 'suucha_riichi') {
+            setPendingRiichi({ e: false, s: false, w: false, n: false });
+        }
     };
     const recordNagashi = () => {
         const names = seats.filter(s => s.name).map(s => s.name);
@@ -384,31 +397,65 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                         {meta.honba > 0 && <span className="ml-1 text-orange-500">{meta.honba}본장</span>}
                     </div>
                     <div className="text-xs text-slate-500">
-                        리치봉 {autoResult.riichiPool}  ·  완료 {hands.length}국
+                        리치봉 {autoResult.riichiPool + (Object.values(pendingRiichi).filter(Boolean).length * 1000)}
+                        {Object.values(pendingRiichi).some(Boolean) && <span className="ml-1 text-amber-600">(미반영 +{Object.values(pendingRiichi).filter(Boolean).length * 1000})</span>}
+                          ·  완료 {hands.length}국
                     </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                     {orderedSeats.map(s => {
                         const isDealer = s.wind === dealerWindNow;
-                        const score = autoResult.scores[s.name] != null ? Math.round(autoResult.scores[s.name]) : 25000;
+                        const baseScore = autoResult.scores[s.name] != null ? Math.round(autoResult.scores[s.name]) : 25000;
+                        const pendingDeduct = pendingRiichi[WIND_TO_FIELD[s.wind]] ? 1000 : 0;
+                        const score = baseScore - pendingDeduct;
+                        const isPending = pendingDeduct > 0;
                         return (
                             <button
                                 key={s.wind}
                                 onClick={() => openHand(s.wind)}
                                 className={'p-4 rounded-xl border-2 text-left transition active:scale-95 ' + (isDealer ? 'border-orange-400 bg-orange-50' : 'border-slate-200 bg-white hover:bg-slate-50')}
                             >
-                                <div className="text-xs font-bold text-slate-500">
-                                    {s.wind} {isDealer && <span className="text-orange-600">친</span>}
+                                <div className="text-xs font-bold text-slate-500 flex items-center gap-1">
+                                    <span>{s.wind} {isDealer && <span className="text-orange-600">친</span>}</span>
+                                    {isPending && <span className="ml-auto px-1 py-0.5 bg-amber-500 text-white rounded text-[9px] font-bold">R</span>}
                                 </div>
                                 <div className="text-lg font-black text-slate-800 truncate">{s.name}</div>
-                                <div className={'text-xl font-mono font-bold mt-1 ' + (score >= 25000 ? 'text-green-600' : 'text-red-500')}>
+                                <div className={'text-xl font-mono font-bold mt-1 ' + (isPending ? 'text-amber-600' : (score >= 25000 ? 'text-green-600' : 'text-red-500'))}>
                                     {score.toLocaleString()}
                                 </div>
-                                <div className="text-[10px] text-slate-400 mt-1">탭 = 이 사람 화료</div>
+                                <div className="text-[10px] text-slate-400 mt-1">{isPending ? '리치 미반영 −1,000' : '탭 = 이 사람 화료'}</div>
                             </button>
                         );
                     })}
+                </div>
+
+                {/* 리치 표시 (옵션 B - 카드 아래 별도 행, hand 입력 시 자동 반영) */}
+                <div className="bg-white border-2 border-amber-200 rounded-lg p-2">
+                    <div className="text-xs font-bold text-amber-800 mb-1.5 flex items-center justify-between">
+                        <span>🔔 리치 표시 <span className="font-normal text-amber-600 text-[10px]">(미반영 — 화료/유국 시 자동 적용)</span></span>
+                        {Object.values(pendingRiichi).some(Boolean) && (
+                            <button type="button" onClick={() => setPendingRiichi({ e: false, s: false, w: false, n: false })} className="text-[10px] text-slate-500 underline">모두 해제</button>
+                        )}
+                    </div>
+                    <div className="grid grid-cols-4 gap-1">
+                        {['동','남','서','북'].map(w => {
+                            const field = WIND_TO_FIELD[w];
+                            const isOn = pendingRiichi[field];
+                            const seat = seats.find(s => s.wind === w);
+                            return (
+                                <button
+                                    key={w}
+                                    type="button"
+                                    onClick={() => setPendingRiichi(prev => ({ ...prev, [field]: !prev[field] }))}
+                                    className={'py-1.5 rounded-lg text-xs font-bold border-2 transition active:scale-95 ' + (isOn ? 'bg-amber-500 text-white border-amber-600' : 'bg-white text-slate-600 border-slate-200')}
+                                >
+                                    <div className="leading-tight">{w}</div>
+                                    <div className={'text-[9px] font-normal truncate leading-tight ' + (isOn ? 'text-amber-50' : 'text-slate-400')}>{seat?.name || '-'}</div>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 <label className={'flex items-center justify-between gap-2 px-3 py-2 rounded-lg border-2 cursor-pointer ' + (multiRonMode ? 'border-fuchsia-500 bg-fuchsia-50' : 'border-slate-200 bg-white')}>
@@ -666,7 +713,10 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             setHands(prev => prev.map((h, i) => i === editIdx ? { ...d } : h));
         } else {
             setHands(prev => [...prev, { ...d }]);
+            // 새 hand 입력 시에만 리셋 (수정 모드는 임시 리치 그대로 유지)
+            setPendingRiichi({ e: false, s: false, w: false, n: false });
         }
+        setShowFuGuide(false);
         setEditingHand(null);
     };
 
@@ -709,20 +759,79 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         return (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-stretch md:items-center justify-center">
                 <div className="bg-white w-full max-w-md max-h-full overflow-y-auto md:rounded-2xl">
-                    <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center">
-                        <div>
+                    <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center gap-2">
+                        <div className="min-w-0 flex-1">
                             <div className="text-sm text-slate-500 flex items-center gap-2 flex-wrap">
                                 {editingHand.editIndex != null && (
                                     <span className="px-1.5 py-0.5 bg-fuchsia-100 text-fuchsia-700 rounded text-[10px] font-bold">🛠 수정 중</span>
                                 )}
                                 <span>{d.hand_wind}{d.hand_round_num}국{d.honba ? ` · ${d.honba}본장` : ''}</span>
                             </div>
-                            <div className="text-lg font-black text-slate-900">
+                            <div className="text-lg font-black text-slate-900 truncate">
                                 {isDraw ? '유국' : `${winnerWind} ${winnerName} ${isDealerWinner ? '(친)' : ''} 화료`}
                             </div>
                         </div>
-                        <button onClick={() => { setEditingHand(null); setYakuConflictMsg(''); }} className="text-slate-400 text-2xl">×</button>
+                        <div className="flex items-center gap-1 shrink-0">
+                            {!isDraw && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowFuGuide(v => !v)}
+                                    className={'px-2 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1 ' + (showFuGuide ? 'bg-amber-500 text-white border-amber-600' : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100')}
+                                    title="부수 계산 안내"
+                                >
+                                    <span>❔ 부수</span><span className="text-[10px]">{showFuGuide ? '▴' : '▾'}</span>
+                                </button>
+                            )}
+                            <button onClick={() => { setEditingHand(null); setYakuConflictMsg(''); setShowFuGuide(false); }} className="text-slate-400 text-2xl px-1">×</button>
+                        </div>
                     </div>
+
+                    {/* 부수 계산 안내 (인라인 펼침) */}
+                    {!isDraw && showFuGuide && (
+                        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3 text-[11px] text-slate-800">
+                            <div className="font-bold text-amber-800 mb-2 flex items-center gap-1">📋 부수 계산</div>
+                            <div className="space-y-1.5">
+                                <div className="flex gap-2 items-start">
+                                    <span className="shrink-0 bg-slate-900 text-white px-1.5 py-0.5 rounded text-[10px] font-bold w-12 text-center">1. 기본</span>
+                                    <span>항상 <b className="bg-white px-1.5 rounded">20부</b></span>
+                                </div>
+                                <div className="flex gap-2 items-start">
+                                    <span className="shrink-0 bg-slate-900 text-white px-1.5 py-0.5 rounded text-[10px] font-bold w-12 text-center">2. 화료</span>
+                                    <span>멘젠론 <b className="bg-white px-1.5 rounded">+10</b>  쯔모 <b className="bg-white px-1.5 rounded">+2</b> <span className="text-slate-500">(핑허·영상개화 제외)</span></span>
+                                </div>
+                                <div className="flex gap-2 items-start">
+                                    <span className="shrink-0 bg-slate-900 text-white px-1.5 py-0.5 rounded text-[10px] font-bold w-12 text-center">3. 대기</span>
+                                    <span>단기 / 변짱 / 간짱 <b className="bg-white px-1.5 rounded">+2</b></span>
+                                </div>
+                                <div className="flex gap-2 items-start">
+                                    <span className="shrink-0 bg-slate-900 text-white px-1.5 py-0.5 rounded text-[10px] font-bold w-12 text-center">4. 머리</span>
+                                    <span>삼원·장풍·자풍 <b className="bg-white px-1.5 rounded">+2</b>  <span className="text-slate-500">이중자풍 +4</span></span>
+                                </div>
+                                <div className="flex gap-2 items-start">
+                                    <span className="shrink-0 bg-slate-900 text-white px-1.5 py-0.5 rounded text-[10px] font-bold w-12 text-center">5. 커쯔</span>
+                                    <div className="grid grid-cols-2 gap-1.5 flex-1">
+                                        <div className="bg-white rounded p-1.5">
+                                            <div className="font-bold text-slate-700 text-[10px] mb-0.5">중장</div>
+                                            <div className="flex justify-between"><span>뻥쯔</span><b>2</b></div>
+                                            <div className="flex justify-between"><span>안커</span><b>4</b></div>
+                                            <div className="flex justify-between"><span>명깡</span><b>8</b></div>
+                                            <div className="flex justify-between"><span>암깡</span><b>16</b></div>
+                                        </div>
+                                        <div className="bg-amber-100 rounded p-1.5">
+                                            <div className="font-bold text-amber-800 text-[10px] mb-0.5">귀족 (1·9·자패)</div>
+                                            <div className="flex justify-between"><span>뻥쯔</span><b>4</b></div>
+                                            <div className="flex justify-between"><span>안커</span><b>8</b></div>
+                                            <div className="flex justify-between"><span>명깡</span><b>16</b></div>
+                                            <div className="flex justify-between"><span>암깡</span><b>32</b></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="mt-2 pt-2 border-t border-dashed border-amber-300 text-[10px] text-amber-800">
+                                <b>예외(고정):</b> 핑허 론 30 · 핑허 쯔모 20 · 치또이츠 25
+                            </div>
+                        </div>
+                    )}
 
                     <div className="p-4 space-y-4">
                         {isDraw ? (
@@ -959,7 +1068,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                     </div>
 
                     <div className="sticky bottom-0 bg-white border-t border-slate-200 p-3 flex gap-2">
-                        <button onClick={() => { setEditingHand(null); setYakuConflictMsg(''); }} className="flex-1 py-3 bg-slate-200 text-slate-700 rounded-lg font-bold">취소</button>
+                        <button onClick={() => { setEditingHand(null); setYakuConflictMsg(''); setShowFuGuide(false); }} className="flex-1 py-3 bg-slate-200 text-slate-700 rounded-lg font-bold">취소</button>
                         <button onClick={confirmHand} className="flex-1 py-3 bg-orange-500 text-white rounded-lg font-bold">확정</button>
                     </div>
                 </div>
@@ -1124,6 +1233,25 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                 {step === 'play' && renderPlay()}
                 {step === 'done' && renderDone()}
                 {renderModal()}
+                {/* 사가리치 자동 확인 모달 */}
+                {suuchaConfirm && (
+                    <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4">
+                        <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl">
+                            <h3 className="text-lg font-bold text-slate-800 mb-2">🎴 사가리치 확인</h3>
+                            <div className="text-sm text-slate-600 mb-4">
+                                4명 모두 리치를 선언했습니다.<br/>
+                                <span className="text-amber-700 font-bold">사가리치 (도중유국)</span> 으로 처리하시겠습니까?
+                            </div>
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-4 text-xs text-amber-800">
+                                ⚠ 처리 시: 4명 모두 −1,000 (리치봉 풀로 이월), 본장 +1, 친 유지
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={() => setSuuchaConfirm(false)} className="flex-1 py-2.5 bg-slate-200 text-slate-700 rounded-lg font-bold text-sm">취소 (계속 진행)</button>
+                                <button onClick={() => { setSuuchaConfirm(false); recordAbortion('suucha_riichi'); }} className="flex-1 py-2.5 bg-amber-500 text-white rounded-lg font-bold text-sm">사가리치로 처리</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 {restorePrompt && (
                     <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
                         <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl">
