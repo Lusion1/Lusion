@@ -460,7 +460,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
 
                 <label className={'flex items-center justify-between gap-2 px-3 py-2 rounded-lg border-2 cursor-pointer ' + (multiRonMode ? 'border-fuchsia-500 bg-fuchsia-50' : 'border-slate-200 bg-white')}>
                     <span className="text-sm font-bold">{multiRonMode ? '🎯 더블론 모드 ON' : '더블론 모드 OFF'}</span>
-                    <input type="checkbox" className="sr-only" checked={multiRonMode} onChange={e => setMultiRonMode(e.target.checked)} />
+                    <input type="checkbox" className="sr-only" checked={multiRonMode} onChange={e => { setMultiRonMode(e.target.checked); if (!e.target.checked) setPendingRiichi({ e: false, s: false, w: false, n: false }); }} />
                     <span className="text-[10px] text-slate-500">{multiRonMode ? '같은 hand 로 묶이고 방총자 동일' : '켜고 카드 N개 차례로 탭'}</span>
                 </label>
 
@@ -713,8 +713,11 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             setHands(prev => prev.map((h, i) => i === editIdx ? { ...d } : h));
         } else {
             setHands(prev => [...prev, { ...d }]);
-            // 새 hand 입력 시에만 리셋 (수정 모드는 임시 리치 그대로 유지)
-            setPendingRiichi({ e: false, s: false, w: false, n: false });
+            // 더블론 모드의 ron 입력은 같은 hand 의 다음 화료자가 올 수 있으므로 임시 리치 유지
+            // 그 외(단일 화료/유국/더블론 OFF)는 다음 hand 로 넘어가므로 리셋
+            if (!(multiRonMode && d.win_type === 'ron')) {
+                setPendingRiichi({ e: false, s: false, w: false, n: false });
+            }
         }
         setShowFuGuide(false);
         setEditingHand(null);
