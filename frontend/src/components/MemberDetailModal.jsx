@@ -106,6 +106,10 @@ export default function MemberDetailModal({ playerName, allStats = [], handStats
                             <Row label="리치 시 쯔모 화료율" value={pct(riichiTsumoC, riichiWinC)} />
                             <Row label="리치 횟수" value={int(riichiC)} />
                             <Row label="리치율" value={pct(riichiC, totalHands)} />
+                            <Row label="후로 화료" value={int(s.furo_wins)} hilite="text-amber-700" />
+                            <Row label="멘젠 화료" value={int(s.menzen_wins)} hilite="text-slate-700" />
+                            <Row label="후로율 (화료 중)" value={Number(s.furo_known_wins) > 0 ? pct(s.furo_wins, s.furo_known_wins) : '- (신규 기록 필요)'} hilite="text-amber-700" />
+                            <Row label="멘젠율 (화료 중)" value={Number(s.furo_known_wins) > 0 ? pct(s.menzen_wins, s.furo_known_wins) : '- (신규 기록 필요)'} hilite="text-slate-700" />
                         </tbody>
                     </Section>
 
