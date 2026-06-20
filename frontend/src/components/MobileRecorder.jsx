@@ -871,6 +871,24 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                             </div>
                         ) : (
                             <>
+                                {/* 손패 형태 (멘젠/후로) — 모달 상단 핵심 선택 */}
+                                <div>
+                                    <div className="text-sm font-bold text-slate-700 mb-2">손패 형태 {d.is_furo === null && <span className="text-[10px] font-normal text-rose-500 ml-1">(선택 필수)</span>}</div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => updateDraft({ is_furo: false })}
+                                            className={'py-3 rounded-lg font-bold border-2 text-base ' + (d.is_furo === false ? 'bg-slate-800 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200')}
+                                        >🀫 멘젠 (門前)</button>
+                                        <button
+                                            type="button"
+                                            onClick={() => updateDraft({ is_furo: true })}
+                                            className={'py-3 rounded-lg font-bold border-2 text-base ' + (d.is_furo === true ? 'bg-amber-500 text-white border-amber-600' : 'bg-white text-slate-700 border-slate-200')}
+                                        >🃏 후로 (副露)</button>
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 mt-1">멘젠 = 폰/치 안 함 · 후로 = 폰/치/명깡 있음. 役 자동 차단/쿠이사가리 적용</div>
+                                </div>
+
                                 {(() => {
                                     const lockWinType = multiRonMode || (editingHand.isMultiRon && editingHand.editIndex != null);
                                     const lockHint = multiRonMode
@@ -938,14 +956,8 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
 
                                 <div>
                                     <div className="flex justify-between items-center mb-2">
-                                        <div className="text-sm font-bold text-slate-700">役 선택</div>
-                                        <div className="flex items-center gap-3">
-                                            <label className={'inline-flex items-center gap-1.5 text-xs font-bold cursor-pointer px-2 py-1 rounded border ' + (d.is_furo ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-600 border-slate-300')}>
-                                                <input type="checkbox" className="hidden" checked={!!d.is_furo} onChange={e => updateDraft({ is_furo: e.target.checked })} />
-                                                {d.is_furo ? '🃏 후로' : '🀫 멘젠'}
-                                            </label>
-                                            <div className="text-[10px] text-slate-400">선택 {(d.yaku_list || []).length}개</div>
-                                        </div>
+                                        <div className="text-sm font-bold text-slate-700">役 선택 {d.is_furo === true && <span className="text-[10px] font-normal text-amber-600 ml-1">(후로 모드)</span>}{d.is_furo === false && <span className="text-[10px] font-normal text-slate-500 ml-1">(멘젠 모드)</span>}</div>
+                                        <div className="text-[10px] text-slate-400">선택 {(d.yaku_list || []).length}개</div>
                                     </div>
 
                                     <div className="flex gap-1 mb-2 overflow-x-auto">
