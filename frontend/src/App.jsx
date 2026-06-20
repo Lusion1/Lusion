@@ -15,7 +15,7 @@ export default function App() {
     const [loginPassword, setLoginPassword] = useState('');
     const [loginError, setLoginError] = useState('');
 
-    const [activeTab, setActiveTab] = useState(localStorage.getItem('mahjong_role') === 'admin' ? 'new-record' : 'stats');
+    const [activeTab, setActiveTab] = useState('mobile-record');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [stats, setStats] = useState([]);
     const [dailyStats, setDailyStats] = useState([]);
@@ -1574,7 +1574,7 @@ export default function App() {
                         ...(userRole === 'admin' ? [
                             { id: 'member-admin', label: '👥 멤버 관리' }
                         ] : []),
-                        { id: 'suggestions', label: '📮 문의사항' },
+                        { id: 'suggestions', label: '📢 업데이트 & 문의' },
                     ].map(tab => (
                         <button
                             key={tab.id}
