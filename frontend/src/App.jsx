@@ -496,7 +496,10 @@ export default function App() {
             ippatsu_rate: wins > 0 ? (ipp / wins) : null,
         };
     });
-    const sortedStats = [...statsWithHand].sort((a, b) => {
+    // 정렬 시 그 컬럼 값이 없는(null/undefined) 멤버는 표시에서 자동 제외
+    const sortedStats = [...statsWithHand]
+        .filter(p => p[sortConfig.key] != null)
+        .sort((a, b) => {
         const valA = a[sortConfig.key] === null || a[sortConfig.key] === undefined ? 0 : a[sortConfig.key];
         const valB = b[sortConfig.key] === null || b[sortConfig.key] === undefined ? 0 : b[sortConfig.key];
 
