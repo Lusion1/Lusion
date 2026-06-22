@@ -531,25 +531,13 @@ export default function App() {
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank12_rate')}>연대율 {getSortIndicator('rank12_rate')}</th>
                         <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('win_rate')}>화료율 {getSortIndicator('win_rate')}</th>
                         <th className="p-3 border-r border-slate-700 text-emerald-300 hover:bg-slate-800 transition" onClick={() => requestSort('tsumo_rate')}>쯔모율 {getSortIndicator('tsumo_rate')}</th>
+                        <th className="p-3 border-r border-slate-700 text-amber-300">일발률</th>
+                        <th className="p-3 border-r border-slate-700 text-green-300">평균 화료 금액</th>
                         <th className="p-3 border-r border-slate-700 text-rose-300 hover:bg-slate-800 transition" onClick={() => requestSort('deal_in_rate')}>방총율 {getSortIndicator('deal_in_rate')}</th>
+                        <th className="p-3 border-r border-slate-700 text-rose-300">평균 방총 금액</th>
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('max_score')}>최고 점수 {getSortIndicator('max_score')}</th>
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('min_score')}>최저 점수 {getSortIndicator('min_score')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('avg_score')}>평균 득점 {getSortIndicator('avg_score')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('count_east')}>동 착석 {getSortIndicator('count_east')}</th>
-                        <th className="p-3 border-r border-slate-700 text-blue-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank_east')}>동 평균순위 {getSortIndicator('avg_rank_east')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('count_south')}>남 착석 {getSortIndicator('count_south')}</th>
-                        <th className="p-3 border-r border-slate-700 text-blue-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank_south')}>남 평균순위 {getSortIndicator('avg_rank_south')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('count_west')}>서 착석 {getSortIndicator('count_west')}</th>
-                        <th className="p-3 border-r border-slate-700 text-blue-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank_west')}>서 평균순위 {getSortIndicator('avg_rank_west')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('count_north')}>북 착석 {getSortIndicator('count_north')}</th>
-                        <th className="p-3 border-r border-slate-700 text-blue-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank_north')}>북 평균순위 {getSortIndicator('avg_rank_north')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('total_mangan')}>만관 {getSortIndicator('total_mangan')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('total_haneman')}>하네만 {getSortIndicator('total_haneman')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('total_baiman')}>배만 {getSortIndicator('total_baiman')}</th>
-                        <th className="p-3 border-r border-slate-700 text-orange-400 hover:bg-slate-800 transition" onClick={() => requestSort('total_sanbaiman')}>삼배만 {getSortIndicator('total_sanbaiman')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('total_yakuman')}>역만 {getSortIndicator('total_yakuman')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('total_kazoeyakuman')}>헤아림역만 {getSortIndicator('total_kazoeyakuman')}</th>
-                        <th className="p-3 rounded-tr-lg hover:bg-slate-800 transition" onClick={() => requestSort('total_doubleyakuman')}>더블역만 이상 {getSortIndicator('total_doubleyakuman')}</th>
+                        <th className="p-3 rounded-tr-lg hover:bg-slate-800 transition" onClick={() => requestSort('avg_score')}>평균 득점 {getSortIndicator('avg_score')}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -575,28 +563,16 @@ export default function App() {
                                 <td className={`p-3 font-bold border-r text-emerald-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>
                                     {s.tsumo_rate == null ? '-' : `${(s.tsumo_rate * 100).toFixed(1)}%`}
                                 </td>
+                                <td className={`p-3 font-bold border-r text-amber-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const wins = Number(hh?.riichi_win_count) || 0; if (wins === 0) return '-'; const ipp = Number(hh?.riichi_ippatsu_count) || 0; return `${((ipp/wins)*100).toFixed(1)}%`; })()}</td>
+                                <td className={`p-3 border-r text-green-700 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const v = hh?.avg_win_score; return v == null ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }); })()}</td>
                                 <td className={`p-3 font-bold border-r text-rose-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>
                                     {s.deal_in_rate == null ? '-' : `${(s.deal_in_rate * 100).toFixed(1)}%`}
                                     {s.hands_participated > 0 && <span className="ml-1 text-[10px] text-slate-400">({s.deal_in_count}/{s.hands_participated})</span>}
                                 </td>
+                                <td className={`p-3 border-r text-rose-700 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const v = hh?.avg_deal_in_score; return v == null ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }); })()}</td>
                                 <td className={`p-3 border-r text-blue-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{Number(s.max_score).toLocaleString()}</td>
                                 <td className={`p-3 border-r text-red-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{Number(s.min_score).toLocaleString()}</td>
-                                <td className={`p-3 border-r w-full whitespace-nowrap ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{Number(s.avg_score).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
-                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{s.count_east}</td>
-                                <td className={`p-3 border-r font-bold ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.avg_rank_east ? 'text-blue-600' : 'text-slate-400'}`}>{s.avg_rank_east ? Number(s.avg_rank_east).toFixed(2) : '-'}</td>
-                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{s.count_south}</td>
-                                <td className={`p-3 border-r font-bold ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.avg_rank_south ? 'text-blue-600' : 'text-slate-400'}`}>{s.avg_rank_south ? Number(s.avg_rank_south).toFixed(2) : '-'}</td>
-                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{s.count_west}</td>
-                                <td className={`p-3 border-r font-bold ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.avg_rank_west ? 'text-blue-600' : 'text-slate-400'}`}>{s.avg_rank_west ? Number(s.avg_rank_west).toFixed(2) : '-'}</td>
-                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{s.count_north}</td>
-                                <td className={`p-3 border-r font-bold ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.avg_rank_north ? 'text-blue-600' : 'text-slate-400'}`}>{s.avg_rank_north ? Number(s.avg_rank_north).toFixed(2) : '-'}</td>
-                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{Number(s.total_mangan) || '-'}</td>
-                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{Number(s.total_haneman) || '-'}</td>
-                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{Number(s.total_baiman) || '-'}</td>
-                                <td className={`p-3 font-bold border-r text-orange-500 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{Number(s.total_sanbaiman) || '-'}</td>
-                                <td className={`p-3 font-black border-r text-pink-500 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{Number(s.total_yakuman) || '-'}</td>
-                                <td className={`p-3 font-black border-r text-pink-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{Number(s.total_kazoeyakuman) || '-'}</td>
-                                <td className={`p-3 font-black text-pink-700`}>{Number(s.total_doubleyakuman) || '-'}</td>
+                                <td className={`p-3 w-full whitespace-nowrap ${isHighlighted ? 'text-orange-800' : ''}`}>{Number(s.avg_score).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                             </tr>
                         );
                     })}
