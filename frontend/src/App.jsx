@@ -484,7 +484,19 @@ export default function App() {
         return <span className="ml-1">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>;
     };
 
-    const sortedStats = [...stats].sort((a, b) => {
+    // handStats 의 컬럼(avg_win_score, avg_deal_in_score, 일발률) 을 stats 에 병합해서 정렬 가능하게
+    const statsWithHand = stats.map(p => {
+        const h = handStats.find(x => x.player_name === p.player_name) || {};
+        const wins = Number(h.riichi_win_count) || 0;
+        const ipp = Number(h.riichi_ippatsu_count) || 0;
+        return {
+            ...p,
+            avg_win_score: h.avg_win_score != null ? Number(h.avg_win_score) : null,
+            avg_deal_in_score: h.avg_deal_in_score != null ? Number(h.avg_deal_in_score) : null,
+            ippatsu_rate: wins > 0 ? (ipp / wins) : null,
+        };
+    });
+    const sortedStats = [...statsWithHand].sort((a, b) => {
         const valA = a[sortConfig.key] === null || a[sortConfig.key] === undefined ? 0 : a[sortConfig.key];
         const valB = b[sortConfig.key] === null || b[sortConfig.key] === undefined ? 0 : b[sortConfig.key];
 
@@ -531,10 +543,10 @@ export default function App() {
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank12_rate')}>연대율 {getSortIndicator('rank12_rate')}</th>
                         <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('win_rate')}>화료율 {getSortIndicator('win_rate')}</th>
                         <th className="p-3 border-r border-slate-700 text-emerald-300 hover:bg-slate-800 transition" onClick={() => requestSort('tsumo_rate')}>쯔모율 {getSortIndicator('tsumo_rate')}</th>
-                        <th className="p-3 border-r border-slate-700 text-amber-300">일발률</th>
-                        <th className="p-3 border-r border-slate-700 text-green-300">평균 화료 금액</th>
+                        <th className="p-3 border-r border-slate-700 text-amber-300 hover:bg-slate-800 transition" onClick={() => requestSort('ippatsu_rate')}>일발률 {getSortIndicator('ippatsu_rate')}</th>
+                        <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_win_score')}>평균 화료 금액 {getSortIndicator('avg_win_score')}</th>
                         <th className="p-3 border-r border-slate-700 text-rose-300 hover:bg-slate-800 transition" onClick={() => requestSort('deal_in_rate')}>방총율 {getSortIndicator('deal_in_rate')}</th>
-                        <th className="p-3 border-r border-slate-700 text-rose-300">평균 방총 금액</th>
+                        <th className="p-3 border-r border-slate-700 text-rose-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_deal_in_score')}>평균 방총 금액 {getSortIndicator('avg_deal_in_score')}</th>
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('max_score')}>최고 점수 {getSortIndicator('max_score')}</th>
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('min_score')}>최저 점수 {getSortIndicator('min_score')}</th>
                         <th className="p-3 rounded-tr-lg hover:bg-slate-800 transition" onClick={() => requestSort('avg_score')}>평균 득점 {getSortIndicator('avg_score')}</th>
