@@ -526,6 +526,7 @@ export default function App() {
             rank12_rate: '1·2위로 끝낸 비율',
             win_rate: '기록된 국 중 화료한 비율',
             tsumo_rate: '기록된 국 중 쯔모한 비율. 론 제외',
+            furo_rate: '화료한 국 중 후로(폰/치/명깡 있음) 상태로 화료한 비율',
             ippatsu_rate: '리치 후 화료한 국 중 일발 비율',
             avg_win_score: '화료한 국의 평균 점수 (본장료 포함, 리치봉 적립금은 별도)',
             deal_in_rate: '기록된 국 중 방총한 비율. 낮을수록 좋음',
@@ -571,6 +572,7 @@ export default function App() {
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank12_rate')}>연대율 {getSortIndicator('rank12_rate')}<InfoIcon k='rank12_rate' /></th>
                         <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('win_rate')}>화료율*  {getSortIndicator('win_rate')}<InfoIcon k='win_rate' /></th>
                         <th className="p-3 border-r border-slate-700 text-emerald-300 hover:bg-slate-800 transition" onClick={() => requestSort('tsumo_rate')}>쯔모율*  {getSortIndicator('tsumo_rate')}<InfoIcon k='tsumo_rate' /></th>
+                        <th className="p-3 border-r border-slate-700 text-amber-300 hover:bg-slate-800 transition" onClick={() => requestSort('furo_rate')}>후로율*  {getSortIndicator('furo_rate')}<InfoIcon k='furo_rate' /></th>
                         <th className="p-3 border-r border-slate-700 text-amber-300 hover:bg-slate-800 transition" onClick={() => requestSort('ippatsu_rate')}>일발률 {getSortIndicator('ippatsu_rate')}<InfoIcon k='ippatsu_rate' /></th>
                         <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_win_score')}>평균 화료 금액 {getSortIndicator('avg_win_score')}<InfoIcon k='avg_win_score' /></th>
                         <th className="p-3 border-r border-slate-700 text-rose-300 hover:bg-slate-800 transition" onClick={() => requestSort('deal_in_rate')}>방총율*  {getSortIndicator('deal_in_rate')}<InfoIcon k='deal_in_rate' /></th>
@@ -602,6 +604,9 @@ export default function App() {
                                 </td>
                                 <td className={`p-3 font-bold border-r text-emerald-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>
                                     {s.tsumo_rate == null ? '-' : `${(s.tsumo_rate * 100).toFixed(1)}%`}
+                                </td>
+                                <td className={`p-3 font-bold border-r text-amber-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>
+                                    {s.furo_rate == null ? '-' : `${(s.furo_rate * 100).toFixed(1)}%`}
                                 </td>
                                 <td className={`p-3 font-bold border-r text-amber-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const wins = Number(hh?.riichi_win_count) || 0; if (wins === 0) return '-'; const ipp = Number(hh?.riichi_ippatsu_count) || 0; return `${((ipp/wins)*100).toFixed(1)}%`; })()}</td>
                                 <td className={`p-3 border-r text-green-700 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const v = hh?.avg_win_score; return v == null ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }); })()}</td>
