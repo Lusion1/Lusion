@@ -1198,6 +1198,8 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                         nagashi_s: h.win_type === 'draw' ? !!h.nagashi_s : false,
                         nagashi_w: h.win_type === 'draw' ? !!h.nagashi_w : false,
                         nagashi_n: h.win_type === 'draw' ? !!h.nagashi_n : false,
+                        // 화료(tsumo/ron) hand 의 멘젠/후로 여부. 유국/촌보/도중유국은 null
+                        is_furo: (h.win_type === 'tsumo' || h.win_type === 'ron') ? (h.is_furo == null ? null : !!h.is_furo) : null,
                     };
                 }),
         };
