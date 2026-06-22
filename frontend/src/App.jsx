@@ -519,7 +519,37 @@ export default function App() {
         return 0;
     });
 
-    const renderStats = () => (
+    const renderStats = () => {
+        const STAT_DESC = {
+            total_matches: '누적 게임(반장전) 수 — 한 판 = 동·남장 끝까지',
+            avg_rank: '게임별 1~4위의 평균. 낮을수록 좋음 (1.00 = 매번 1위)',
+            avg_uma: '게임당 평균 우마(점수). 양수면 평균 이상',
+            total_uma: '시즌 동안 누적 우마 합계. 모임의 핵심 성적',
+            rank1_rate: '게임 중 1위로 끝낸 비율',
+            rank2_rate: '게임 중 2위로 끝낸 비율',
+            rank3_rate: '게임 중 3위로 끝낸 비율',
+            rank4_rate: '게임 중 4위로 끝낸 비율 (낮을수록 좋음)',
+            tobi_rate: '게임 종료 시 점수가 마이너스(토비) 비율',
+            rank12_rate: '1·2위로 끝낸 비율 (3·4위 안 가는 비율, 안정성 지표)',
+            win_rate: '참여한 모든 hand(한 국) 중 화료(이김)한 비율',
+            tsumo_rate: '참여한 hand 중 쯔모(스스로 뽑아 화료)한 비율. 론 제외',
+            ippatsu_rate: '리치 화료 중 일발(리치 후 한 바퀴 내) 비율',
+            avg_win_score: '화료한 hand의 평균 점수 (혼바료/리치봉 제외 순수 점)',
+            deal_in_rate: '\'한 국씩 입력\' 기록된 국 중 방총(다른 사람에게 쏘임)한 비율. 낮을수록 좋음',
+            avg_deal_in_score: '방총한 국의 평균 점수 (쏘인 점수)',
+            max_score: '단일 게임 종료 시 최고 점수',
+            min_score: '단일 게임 종료 시 최저 점수 (마이너스 가능)',
+            avg_score: '단일 게임 종료 시 평균 점수',
+            player_name: '멤버 이름',
+        };
+        const InfoIcon = ({ k }) => (
+            <span
+                title={STAT_DESC[k]}
+                onClick={(e) => { e.stopPropagation(); alert(STAT_DESC[k]); }}
+                className="ml-1 inline-flex items-center justify-center w-4 h-4 text-[10px] rounded-full bg-slate-700 text-slate-300 cursor-help hover:bg-slate-600"
+            >?</span>
+        );
+        return (
         <div className="bg-white shadow-lg rounded-xl p-6 overflow-auto max-h-[85vh]">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b pb-4 gap-4">
                 <h2 className="text-2xl font-bold text-slate-800">
@@ -536,26 +566,26 @@ export default function App() {
             <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
                 <thead className="sticky top-0 z-30">
                     <tr className="bg-slate-900 text-white text-center cursor-pointer select-none">
-                        <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition sticky-left bg-slate-900 z-[31]" onClick={() => requestSort('player_name')}>이름 {getSortIndicator('player_name')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('total_matches')}>총 게임수 {getSortIndicator('total_matches')}</th>
-                        <th className="p-3 border-r border-slate-700 text-orange-400 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank')}>평균 순위 {getSortIndicator('avg_rank')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('avg_uma')}>평균 우마 {getSortIndicator('avg_uma')}</th>
-                        <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition" onClick={() => requestSort('total_uma')}>총 우마 {getSortIndicator('total_uma')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank1_rate')}>1위율 {getSortIndicator('rank1_rate')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank2_rate')}>2위율 {getSortIndicator('rank2_rate')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank3_rate')}>3위율 {getSortIndicator('rank3_rate')}</th>
-                        <th className="p-3 border-r border-slate-700 text-red-300 hover:bg-slate-800 transition" onClick={() => requestSort('rank4_rate')}>4위율 {getSortIndicator('rank4_rate')}</th>
-                        <th className="p-3 border-r border-slate-700 text-purple-300 hover:bg-slate-800 transition" onClick={() => requestSort('tobi_rate')}>토비율 {getSortIndicator('tobi_rate')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank12_rate')}>연대율 {getSortIndicator('rank12_rate')}</th>
-                        <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('win_rate')}>화료율 {getSortIndicator('win_rate')}</th>
-                        <th className="p-3 border-r border-slate-700 text-emerald-300 hover:bg-slate-800 transition" onClick={() => requestSort('tsumo_rate')}>쯔모율 {getSortIndicator('tsumo_rate')}</th>
-                        <th className="p-3 border-r border-slate-700 text-amber-300 hover:bg-slate-800 transition" onClick={() => requestSort('ippatsu_rate')}>일발률 {getSortIndicator('ippatsu_rate')}</th>
-                        <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_win_score')}>평균 화료 금액 {getSortIndicator('avg_win_score')}</th>
-                        <th className="p-3 border-r border-slate-700 text-rose-300 hover:bg-slate-800 transition" onClick={() => requestSort('deal_in_rate')}>방총율 {getSortIndicator('deal_in_rate')}</th>
-                        <th className="p-3 border-r border-slate-700 text-rose-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_deal_in_score')}>평균 방총 금액 {getSortIndicator('avg_deal_in_score')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('max_score')}>최고 점수 {getSortIndicator('max_score')}</th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('min_score')}>최저 점수 {getSortIndicator('min_score')}</th>
-                        <th className="p-3 rounded-tr-lg hover:bg-slate-800 transition" onClick={() => requestSort('avg_score')}>평균 득점 {getSortIndicator('avg_score')}</th>
+                        <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition sticky-left bg-slate-900 z-[31]" onClick={() => requestSort('player_name')}>이름 {getSortIndicator('player_name')}<InfoIcon k='player_name' /></th>
+                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('total_matches')}>총 게임수 {getSortIndicator('total_matches')}<InfoIcon k='total_matches' /></th>
+                        <th className="p-3 border-r border-slate-700 text-orange-400 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank')}>평균 순위 {getSortIndicator('avg_rank')}<InfoIcon k='avg_rank' /></th>
+                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('avg_uma')}>평균 우마 {getSortIndicator('avg_uma')}<InfoIcon k='avg_uma' /></th>
+                        <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition" onClick={() => requestSort('total_uma')}>총 우마 {getSortIndicator('total_uma')}<InfoIcon k='total_uma' /></th>
+                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank1_rate')}>1위율 {getSortIndicator('rank1_rate')}<InfoIcon k='rank1_rate' /></th>
+                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank2_rate')}>2위율 {getSortIndicator('rank2_rate')}<InfoIcon k='rank2_rate' /></th>
+                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank3_rate')}>3위율 {getSortIndicator('rank3_rate')}<InfoIcon k='rank3_rate' /></th>
+                        <th className="p-3 border-r border-slate-700 text-red-300 hover:bg-slate-800 transition" onClick={() => requestSort('rank4_rate')}>4위율 {getSortIndicator('rank4_rate')}<InfoIcon k='rank4_rate' /></th>
+                        <th className="p-3 border-r border-slate-700 text-purple-300 hover:bg-slate-800 transition" onClick={() => requestSort('tobi_rate')}>토비율 {getSortIndicator('tobi_rate')}<InfoIcon k='tobi_rate' /></th>
+                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank12_rate')}>연대율 {getSortIndicator('rank12_rate')}<InfoIcon k='rank12_rate' /></th>
+                        <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('win_rate')}>화료율 {getSortIndicator('win_rate')}<InfoIcon k='win_rate' /></th>
+                        <th className="p-3 border-r border-slate-700 text-emerald-300 hover:bg-slate-800 transition" onClick={() => requestSort('tsumo_rate')}>쯔모율 {getSortIndicator('tsumo_rate')}<InfoIcon k='tsumo_rate' /></th>
+                        <th className="p-3 border-r border-slate-700 text-amber-300 hover:bg-slate-800 transition" onClick={() => requestSort('ippatsu_rate')}>일발률 {getSortIndicator('ippatsu_rate')}<InfoIcon k='ippatsu_rate' /></th>
+                        <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_win_score')}>평균 화료 금액 {getSortIndicator('avg_win_score')}<InfoIcon k='avg_win_score' /></th>
+                        <th className="p-3 border-r border-slate-700 text-rose-300 hover:bg-slate-800 transition" onClick={() => requestSort('deal_in_rate')}>방총율 {getSortIndicator('deal_in_rate')}<InfoIcon k='deal_in_rate' /></th>
+                        <th className="p-3 border-r border-slate-700 text-rose-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_deal_in_score')}>평균 방총 금액 {getSortIndicator('avg_deal_in_score')}<InfoIcon k='avg_deal_in_score' /></th>
+                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('max_score')}>최고 점수 {getSortIndicator('max_score')}<InfoIcon k='max_score' /></th>
+                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('min_score')}>최저 점수 {getSortIndicator('min_score')}<InfoIcon k='min_score' /></th>
+                        <th className="p-3 rounded-tr-lg hover:bg-slate-800 transition" onClick={() => requestSort('avg_score')}>평균 득점 {getSortIndicator('avg_score')}<InfoIcon k='avg_score' /></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -597,7 +627,8 @@ export default function App() {
                 </tbody>
             </table>
         </div>
-    );
+        );
+    };
 
     const renderRival = () => (
         <div className="space-y-6">
