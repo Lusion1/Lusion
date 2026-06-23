@@ -151,6 +151,32 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
         }
     };
 
+    const submitDeleteReply = async () => {
+        if (!detailItem) return;
+        if (!detailItem.admin_reply) return;
+        if (!window.confirm('관리자 답글을 삭제하시겠습니까?\n(글 자체는 삭제되지 않습니다)')) return;
+        setSubmitting(true);
+        try {
+            const res = await fetch(`/api/suggestions/${detailItem.id}/reply`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${authToken}` },
+            });
+            if (!res.ok) {
+                const msg = await res.text();
+                alert('답글 삭제 실패: ' + msg);
+                return;
+            }
+            const updated = await res.json();
+            setDetailItem(updated);
+            setReplyDraft('');
+            await fetchList();
+        } catch (e) {
+            alert('서버 통신 실패: ' + e.message);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const submitDelete = async () => {
         if (!detailItem) return;
         if (!window.confirm(`정말 삭제하시겠습니까?\n"${detailItem.title}"`)) return;
@@ -377,11 +403,22 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
                                 {/* 관리자 응답 (있을 때만 표시) */}
                                 {detailItem.admin_reply && (
                                     <div className="border-l-4 border-orange-400 bg-orange-50/50 p-3 rounded-r-lg">
-                                        <div className="text-xs font-bold text-orange-700 mb-1">
-                                            🛠 관리자 응답
-                                            <span className="ml-2 font-normal text-orange-500">
-                                                {detailItem.admin_reply_by || 'admin'} · {fmtDateTime(detailItem.admin_reply_at)}
+                                        <div className="text-xs font-bold text-orange-700 mb-1 flex items-center justify-between">
+                                            <span>
+                                                🛠 관리자 응답
+                                                <span className="ml-2 font-normal text-orange-500">
+                                                    {detailItem.admin_reply_by || 'admin'} · {fmtDateTime(detailItem.admin_reply_at)}
+                                                </span>
                                             </span>
+                                            {isAdmin && (
+                                                <button
+                                                    type="button"
+                                                    onClick={submitDeleteReply}
+                                                    disabled={submitting}
+                                                    className="text-[11px] text-rose-600 hover:bg-rose-100 active:bg-rose-200 rounded px-1.5 py-0.5 disabled:opacity-60"
+                                                    title="답글 삭제 (글은 유지)"
+                                                >🗑 답글 삭제</button>
+                                            )}
                                         </div>
                                         <div className="text-sm text-slate-800 whitespace-pre-wrap break-words">{detailItem.admin_reply}</div>
                                     </div>
