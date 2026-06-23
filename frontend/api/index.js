@@ -669,6 +669,26 @@ app.put('/api/suggestions/:id/status', checkAuth, checkAdmin, async (req, res) =
   } catch (err) { res.status(500).send(err.toString()); }
 });
 
+// 답글 삭제 (관리자만) — admin_reply 관련 컬럼만 NULL, status 는 유지
+app.delete('/api/suggestions/:id/reply', checkAuth, checkAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (!id) return res.status(400).send('Invalid id');
+    const result = await pool.query(
+      `UPDATE suggestions
+          SET admin_reply = NULL,
+              admin_reply_by = NULL,
+              admin_reply_at = NULL,
+              updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+       RETURNING id, nickname, title, content, status, category, created_at, updated_at, admin_reply, admin_reply_by, admin_reply_at, created_by`,
+      [id]
+    );
+    if (result.rows.length === 0) return res.status(404).send('Not found');
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).send(err.toString()); }
+});
+
 // 삭제 (관리자만)
 app.delete('/api/suggestions/:id', checkAuth, checkAdmin, async (req, res) => {
   try {
