@@ -15,6 +15,66 @@ const fmtDateTime = (iso) => {
     catch { return iso; }
 };
 
+// === 간단 마크업 파서: **볼드** / [red]텍스트[/red] (red|blue|green|orange|gray) ===
+const MARKUP_COLORS = { red: '#dc2626', blue: '#2563eb', green: '#16a34a', orange: '#ea580c', gray: '#64748b' };
+const COLOR_LABELS = { red: '빨강', blue: '파랑', green: '초록', orange: '주황', gray: '회색' };
+const renderMarkup = (text) => {
+    if (!text) return null;
+    const parts = [];
+    let lastIndex = 0;
+    let i = 0;
+    const regex = /(\*\*([^*\n]+)\*\*)|(\[(red|blue|green|orange|gray)\]([\s\S]+?)\[\/\4\])/g;
+    let m;
+    while ((m = regex.exec(text)) !== null) {
+        if (m.index > lastIndex) parts.push(<React.Fragment key={'t'+i}>{text.slice(lastIndex, m.index)}</React.Fragment>);
+        if (m[1]) {
+            parts.push(<b key={'b'+i}>{m[2]}</b>);
+        } else if (m[3]) {
+            parts.push(<span key={'c'+i} style={{ color: MARKUP_COLORS[m[4]] }}>{m[5]}</span>);
+        }
+        i++;
+        lastIndex = regex.lastIndex;
+    }
+    if (lastIndex < text.length) parts.push(<React.Fragment key={'t'+i}>{text.slice(lastIndex)}</React.Fragment>);
+    return parts;
+};
+
+// 마크업 도구 (textarea 위 버튼 행)
+function MarkupToolbar({ textareaRef, value, onChange }) {
+    const wrap = (before, after) => {
+        const t = textareaRef.current;
+        if (!t) return;
+        const start = t.selectionStart;
+        const end = t.selectionEnd;
+        const selected = value.substring(start, end);
+        const replacement = before + selected + after;
+        const newText = value.substring(0, start) + replacement + value.substring(end);
+        onChange(newText);
+        setTimeout(() => {
+            t.focus();
+            const newStart = start + before.length;
+            const newEnd = newStart + selected.length;
+            t.setSelectionRange(newStart, newEnd);
+        }, 0);
+    };
+    return (
+        <div className="flex flex-wrap gap-1 mb-1 items-center">
+            <button type="button" onClick={() => wrap('**', '**')} className="px-2 py-1 text-xs font-bold border border-slate-300 rounded bg-white hover:bg-slate-100" title="볼드">B</button>
+            {Object.keys(MARKUP_COLORS).map(c => (
+                <button
+                    key={c}
+                    type="button"
+                    onClick={() => wrap(`[${c}]`, `[/${c}]`)}
+                    style={{ color: MARKUP_COLORS[c] }}
+                    className="px-2 py-1 text-xs font-bold border border-slate-300 rounded bg-white hover:bg-slate-100"
+                    title={COLOR_LABELS[c]}
+                >■ {COLOR_LABELS[c]}</button>
+            ))}
+            <span className="text-[10px] text-slate-400 ml-auto">선택 후 클릭 · 예: **볼드** [red]빨강[/red]</span>
+        </div>
+    );
+}
+
 export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
     const isAdmin = userRole === 'admin';
     const [items, setItems] = useState([]);
@@ -25,6 +85,8 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
 
     const [writeModal, setWriteModal] = useState(false);
     const [writeForm, setWriteForm] = useState({ nickname: '', title: '', content: '', category: 'inquiry' });
+    const writeTextareaRef = React.useRef(null);
+    const replyTextareaRef = React.useRef(null);
     const [submitting, setSubmitting] = useState(false);
 
     const [detailItem, setDetailItem] = useState(null);
@@ -355,12 +417,16 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
                             </div>
                             <div>
                                 <label className="text-xs font-bold text-slate-600">내용 (필수)</label>
+                                <div className="mt-1">
+                                    <MarkupToolbar textareaRef={writeTextareaRef} value={writeForm.content} onChange={v => setWriteForm(f => ({ ...f, content: v }))} />
+                                </div>
                                 <textarea
+                                    ref={writeTextareaRef}
                                     maxLength={5000}
                                     value={writeForm.content}
                                     onChange={e => setWriteForm(f => ({ ...f, content: e.target.value }))}
-                                    className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg min-h-[160px] resize-y"
-                                    placeholder="자세한 내용을 적어주세요."
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg min-h-[160px] resize-y"
+                                    placeholder="자세한 내용을 적어주세요. 볼드/색상 가능"
                                 />
                                 <div className="text-[10px] text-slate-400 text-right mt-0.5">{writeForm.content.length}/5000</div>
                             </div>
@@ -397,7 +463,7 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
 
                                 {/* 본문 */}
                                 <div className="text-sm text-slate-800 whitespace-pre-wrap break-words bg-slate-50 border border-slate-100 rounded-lg p-3">
-                                    {detailItem.content}
+                                    {renderMarkup(detailItem.content)}
                                 </div>
 
                                 {/* 관리자 응답 (있을 때만 표시) */}
@@ -420,7 +486,7 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
                                                 >🗑 답글 삭제</button>
                                             )}
                                         </div>
-                                        <div className="text-sm text-slate-800 whitespace-pre-wrap break-words">{detailItem.admin_reply}</div>
+                                        <div className="text-sm text-slate-800 whitespace-pre-wrap break-words">{renderMarkup(detailItem.admin_reply)}</div>
                                     </div>
                                 )}
 
@@ -452,12 +518,16 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
 
                                         <div>
                                             <label className="text-xs font-bold text-slate-600">답글</label>
+                                            <div className="mt-1">
+                                                <MarkupToolbar textareaRef={replyTextareaRef} value={replyDraft} onChange={setReplyDraft} />
+                                            </div>
                                             <textarea
+                                                ref={replyTextareaRef}
                                                 maxLength={5000}
                                                 value={replyDraft}
                                                 onChange={e => setReplyDraft(e.target.value)}
-                                                className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg min-h-[100px] resize-y bg-white"
-                                                placeholder="답글 내용을 입력하세요."
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-lg min-h-[100px] resize-y bg-white"
+                                                placeholder="답글 내용을 입력하세요. 볼드/색상 가능"
                                             />
                                             <div className="text-[10px] text-slate-400 text-right mt-0.5">{replyDraft.length}/5000</div>
                                         </div>
