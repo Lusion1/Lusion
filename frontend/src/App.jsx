@@ -196,26 +196,34 @@ export default function App() {
             return;
         }
 
+        // === preserveHands 모드 판정 ===
+        // 수정 모드 + 한 국씩 입력 데이터(editingRoundHands) 존재 시
+        //   → 점수만 업데이트, hand_results 는 백엔드에서 보존
+        const preserveHandsMode = !!(editingRound && editingRoundHands.length > 0);
+
         // === hand 데이터 검증 (입력된 행만 추출) ===
         // 화료(tsumo/ron) win_type 이면서 화료자가 비어있는 행은 미완성 → 저장 시 자동 무시
-        // (점수만 수정하고 hand 정보 안 채우는 케이스 허용)
+        // chombo/abortion/draw 는 winner_name 비어 있어도 정상 (검증 제외)
+        // preserveHandsMode 면 어차피 백엔드가 hand_results 안 건드리므로 검증 스킵
         const filledHands = newHands.filter(h => {
             if (!h.win_type) return false;
             if ((h.win_type === 'tsumo' || h.win_type === 'ron') && !h.winner_name) return false;
             return true;
         });
-        for (const h of filledHands) {
-            if (h.win_type !== 'draw' && !h.winner_name) {
-                alert(`${h.hand_wind}${h.hand_round_num}국: 화료자를 선택해주세요.`);
-                return;
-            }
-            if (h.win_type === 'ron' && !h.deal_in_name) {
-                alert(`${h.hand_wind}${h.hand_round_num}국: 방총자를 선택해주세요.`);
-                return;
-            }
-            if (h.win_type === 'ron' && h.winner_name === h.deal_in_name) {
-                alert(`${h.hand_wind}${h.hand_round_num}국: 화료자와 방총자가 같을 수 없습니다.`);
-                return;
+        if (!preserveHandsMode) {
+            for (const h of filledHands) {
+                if ((h.win_type === 'tsumo' || h.win_type === 'ron') && !h.winner_name) {
+                    alert(`${h.hand_wind}${h.hand_round_num}국: 화료자를 선택해주세요.`);
+                    return;
+                }
+                if (h.win_type === 'ron' && !h.deal_in_name) {
+                    alert(`${h.hand_wind}${h.hand_round_num}국: 방총자를 선택해주세요.`);
+                    return;
+                }
+                if (h.win_type === 'ron' && h.winner_name === h.deal_in_name) {
+                    alert(`${h.hand_wind}${h.hand_round_num}국: 화료자와 방총자가 같을 수 없습니다.`);
+                    return;
+                }
             }
         }
         const handsToSend = filledHands
@@ -301,12 +309,20 @@ export default function App() {
                         kazoeyakuman: parseInt(p.kazoeyakuman) || 0,
                         doubleyakuman: parseInt(p.doubleyakuman) || 0
                     })),
-                    hands: handsToSend
+                    // preserveHandsMode 면 hand_results 보존 → hands 빈 배열 + preserveHands: true
+                    hands: preserveHandsMode ? [] : handsToSend,
+                    preserveHands: preserveHandsMode
                 })
             });
 
             if (res.ok) {
-                alert(editingRound ? '기록이 성공적으로 수정되었습니다!' : '기록이 성공적으로 저장되었습니다!');
+                alert(
+                    editingRound
+                        ? (preserveHandsMode
+                            ? '점수가 수정되었습니다.\n(한 국씩 입력 데이터는 보존됨)'
+                            : '기록이 성공적으로 수정되었습니다!')
+                        : '기록이 성공적으로 저장되었습니다!'
+                );
                 window.location.reload();
             } else {
                 const msg = await res.text();
@@ -1359,6 +1375,10 @@ export default function App() {
                                 <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                                     <h3 className="text-lg font-bold text-slate-800">📋 진행 내역 ({editingRoundHands.length}국)</h3>
                                     <span className="text-xs text-slate-400">한 국씩 입력으로 저장된 상세 기록 · 보기 전용</span>
+                                </div>
+                                <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+                                    💡 이 라운드는 hand 데이터가 저장되어 있어 <b>[수정 완료]</b> 시 점수/우마/등급만 업데이트되고 진행 내역은 그대로 보존됩니다.<br/>
+                                    hand 자체를 수정하려면 <b>🀄 한 국씩 입력 → ✏ 수정</b> 메뉴를 이용하세요.
                                 </div>
                                 <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                                     {order.map(hn => {
