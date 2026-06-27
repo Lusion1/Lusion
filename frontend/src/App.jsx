@@ -197,7 +197,13 @@ export default function App() {
         }
 
         // === hand 데이터 검증 (입력된 행만 추출) ===
-        const filledHands = newHands.filter(h => h.win_type);
+        // 화료(tsumo/ron) win_type 이면서 화료자가 비어있는 행은 미완성 → 저장 시 자동 무시
+        // (점수만 수정하고 hand 정보 안 채우는 케이스 허용)
+        const filledHands = newHands.filter(h => {
+            if (!h.win_type) return false;
+            if ((h.win_type === 'tsumo' || h.win_type === 'ron') && !h.winner_name) return false;
+            return true;
+        });
         for (const h of filledHands) {
             if (h.win_type !== 'draw' && !h.winner_name) {
                 alert(`${h.hand_wind}${h.hand_round_num}국: 화료자를 선택해주세요.`);
