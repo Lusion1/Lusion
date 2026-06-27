@@ -360,22 +360,27 @@ app.put('/api/records/:round', checkAuth, checkAdmin, async (req, res) => {
   const client = await pool.connect();
   try {
     const roundToEdit = parseInt(req.params.round);
-    const { date, players, hands } = req.body;
+    const { date, players, hands, preserveHands } = req.body;
     if (!roundToEdit || !date || !players || players.length !== 4) return res.status(400).send("Invalid input data");
-    if (hands && hands.length > 0) {
+    // preserveHands=true 일 때는 hand_results 를 건드리지 않고 match_results(점수)만 업데이트
+    if (!preserveHands && hands && hands.length > 0) {
       const err = validateHands(hands, players);
       if (err) return res.status(400).send('hands 검증 실패: ' + err);
     }
     await client.query('BEGIN');
-    await client.query('DELETE FROM hand_results  WHERE match_round = $1', [roundToEdit]);
+    if (!preserveHands) {
+      await client.query('DELETE FROM hand_results  WHERE match_round = $1', [roundToEdit]);
+    }
     await client.query('DELETE FROM match_results WHERE round       = $1', [roundToEdit]);
     const insertQuery = `INSERT INTO match_results (match_date, round, wind, player_name, final_score, rank, uma, mangan, haneman, baiman, sanbaiman, yakuman, kazoeyakuman, doubleyakuman) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`;
     for (const p of players) {
       await client.query(insertQuery, [date, roundToEdit, p.wind || '', p.name, p.score, p.rank, p.uma, p.mangan || 0, p.haneman || 0, p.baiman || 0, p.sanbaiman || 0, p.yakuman || 0, p.kazoeyakuman || 0, p.doubleyakuman || 0]);
     }
-    await insertHands(client, hands, roundToEdit, date);
+    if (!preserveHands) {
+      await insertHands(client, hands, roundToEdit, date);
+    }
     await client.query('COMMIT');
-    res.json({ success: true, round: roundToEdit });
+    res.json({ success: true, round: roundToEdit, preserveHands: !!preserveHands });
   } catch (err) { await client.query('ROLLBACK'); res.status(500).send(err.toString()); } finally { client.release(); }
 });
 
