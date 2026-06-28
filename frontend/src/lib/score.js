@@ -190,6 +190,19 @@ export function calcRoundResult(players, hands, opts = {}) {
                     scores[p.name] = (scores[p.name] || 0) + 3000;
                 }
             }
+        } else if (h.win_type === 'late_penalty') {
+            // 지각 패널티: late_player 가 다른 3명에게 각 late_penalty 점씩 분배
+            const lateName = h.late_player;
+            const perPerson = parseInt(h.late_penalty) || 0;
+            if (lateName && scores[lateName] != null && perPerson > 0) {
+                let totalDeduct = 0;
+                for (const p of players) {
+                    if (!p || !p.name || p.name === lateName) continue;
+                    scores[p.name] = (scores[p.name] || 0) + perPerson;
+                    totalDeduct += perPerson;
+                }
+                scores[lateName] = (scores[lateName] || 0) - totalDeduct;
+            }
         } else if (h.win_type === 'draw') {
             // 유국이라도 리치한 자리 사람은 -1000, 리치봉 풀에 +1000 (이월)
             const riichiSeats2 = { '동': h.riichi_e, '남': h.riichi_s, '서': h.riichi_w, '북': h.riichi_n };
