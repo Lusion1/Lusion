@@ -240,12 +240,12 @@ function validateHands(hands, players) {
     seen.add(dupKey);
     if (!['동','남','서','북'].includes(h.hand_wind)) return 'hand_wind 오류';
     if (![1,2,3,4].includes(Number(h.hand_round_num))) return 'hand_round_num 오류';
-    if (!['tsumo','ron','draw','abortion','chombo'].includes(h.win_type)) return 'win_type 오류';
+    if (!['tsumo','ron','draw','abortion','chombo','late_penalty'].includes(h.win_type)) return 'win_type 오류';
     if (h.win_type === 'tsumo' || h.win_type === 'ron') {
       if (!h.winner_name || !validNames.has(h.winner_name))
         return '화료자 미등록: ' + h.winner_name;
     } else {
-      // draw / abortion / chombo
+      // draw / abortion / chombo / late_penalty
       if (h.winner_name || h.deal_in_name) return h.win_type + ' 시 winner/deal_in 는 NULL 이어야 함';
     }
     if (h.win_type === 'ron') {
@@ -254,6 +254,13 @@ function validateHands(hands, players) {
       if (h.winner_name === h.deal_in_name) return '화료자와 방총자가 같습니다';
     }
     if (h.win_type === 'tsumo' && h.deal_in_name) return 'tsumo 시 deal_in_name 은 NULL 이어야 함';
+    if (h.win_type === 'late_penalty') {
+      if (!h.late_player || !validNames.has(h.late_player))
+        return '지각자 미등록: ' + h.late_player;
+      const lp = parseInt(h.late_penalty);
+      if (!lp || lp <= 0) return '지각 분배 점수(late_penalty)가 양수여야 합니다';
+      if (lp % 100 !== 0) return '지각 분배 점수는 100 단위여야 합니다 (입력값: ' + lp + ')';
+    }
   }
   return null;
 }
@@ -272,7 +279,8 @@ async function insertHands(client, hands, matchRound, matchDate) {
        riichi_e, riichi_s, riichi_w, riichi_n,
        abortion_type, chombo_player,
        nagashi_e, nagashi_s, nagashi_w, nagashi_n,
-       multi_index, is_furo)
+       multi_index, is_furo,
+       late_player, late_penalty)
     VALUES ($1,  $2,  $3,  $4,  $5,
             $6,  $7,  $8,  $9,
             $10, $11, $12, $13, $14,
@@ -283,7 +291,8 @@ async function insertHands(client, hands, matchRound, matchDate) {
             $29, $30, $31, $32,
             $33, $34,
             $35, $36, $37, $38,
-            $39, $40)
+            $39, $40,
+            $41, $42)
   `;
   const toIntOrNull = (v) => (v == null || v === '' ? null : parseInt(v));
   const toBool = (v) => v === true || v === 'true';
@@ -330,6 +339,8 @@ async function insertHands(client, hands, matchRound, matchDate) {
       toBool(h.nagashi_n),
       parseInt(h.multi_index) || 1, // 더블론/트리플론 그룹 내 순번 (1, 2, 3...)
       h.is_furo == null ? null : !!h.is_furo, // 후로 여부 (null=정보 없음, true/false)
+      h.win_type === 'late_penalty' ? (h.late_player || null) : null, // 지각자
+      h.win_type === 'late_penalty' ? toIntOrNull(h.late_penalty) : null, // 1명당 분배 점수
     ]);
   }
 }
@@ -413,10 +424,10 @@ app.get('/api/records/:round/hands', async (req, res) => {
               riichi_e, riichi_s, riichi_w, riichi_n,
               abortion_type, chombo_player,
               nagashi_e, nagashi_s, nagashi_w, nagashi_n,
-              is_furo
+              is_furo, late_player, late_penalty
          FROM hand_results
         WHERE match_round = $1
-        ORDER BY hand_number ASC`,
+        ORDER BY hand_number ASC, multi_index ASC`,
       [round]
     );
     res.json(result.rows);
@@ -456,7 +467,8 @@ app.get('/api/hand-stats', async (req, res) => {
       )
       SELECT
         player_name,
-        COUNT(hand_id)                                                          AS total_hands,
+        -- late_penalty 행은 실제 국이 아니므로 total_hands 분모에서 제외
+        COUNT(*) FILTER (WHERE hand_id IS NOT NULL AND win_type <> 'late_penalty') AS total_hands,
         COUNT(*) FILTER (WHERE winner_name = player_name)                       AS win_count,
         AVG(point_total) FILTER (WHERE winner_name = player_name)::numeric      AS avg_win_score,
         COUNT(*) FILTER (WHERE deal_in_name = player_name)                      AS deal_in_count,
