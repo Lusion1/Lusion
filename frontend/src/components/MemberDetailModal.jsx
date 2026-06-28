@@ -29,9 +29,9 @@ export default function MemberDetailModal({ playerName, allStats = [], handStats
     const riichiTsumoC = parseInt(h.riichi_tsumo_count) || 0;
 
     // 役 카탈로그 묶음
+    // (옛 통합 키 'yakuhai' / 'sangenpai' 는 분리 키로 대체되어 표시 제거)
     const yakuSections = [
-        // 5번: 역패/삼원패 분할. 옛 키(yakuhai/sangenpai)도 호환 카운트로 같이 표시
-        { title: '1판역', keys: ['riichi','yakuhai_haku','yakuhai_hatsu','yakuhai_chun','yakuhai_seat','yakuhai_round','yakuhai','sangenpai','tanyao','pinfu','tsumo','ippatsu','iipeikou','haitei','houtei','rinshan','chankan'] },
+        { title: '1판역', keys: ['riichi','yakuhai_haku','yakuhai_hatsu','yakuhai_chun','yakuhai_seat','yakuhai_round','tanyao','pinfu','tsumo','ippatsu','iipeikou','haitei','houtei','rinshan','chankan'] },
         // 4번: sankantsu 키 그대로 (라벨만 '산깡즈'로 변경됨)
         { title: '2판역', keys: ['double_riichi','sanshoku','sanshoku_doukou','ittsu','chanta','toitoi','sanankou','sankantsu','chiitoitsu','honroutou','shousangen'] },
         { title: '3판역', keys: ['honitsu','junchan','ryanpeikou'] },
@@ -90,9 +90,10 @@ export default function MemberDetailModal({ playerName, allStats = [], handStats
                             <Row label="2위율" value={pct(s.rank2_rate * (s.total_matches || 0), s.total_matches)} />
                             <Row label="3위율" value={pct(s.rank3_rate * (s.total_matches || 0), s.total_matches)} />
                             <Row label="4위율" value={pct(s.rank4_rate * (s.total_matches || 0), s.total_matches)} />
+                            <Row label="연대율 (1·2위)" value={s.rank12_rate != null ? `${(Number(s.rank12_rate) * 100).toFixed(1)}%` : '-'} hilite="text-green-700" />
                             <Row label="토비율" value={pct(s.tobi_rate * (s.total_matches || 0), s.total_matches)} />
                             <Row label="평균 순위" value={num(s.avg_rank, 2)} />
-                            <Row label="평균 승점 (대국당 우마)" value={num(avgUma, 2)} />
+                            <Row label="평균 우마 (대국당)" value={num(s.avg_uma != null ? Number(s.avg_uma) : avgUma, 2)} />
                         </tbody>
                     </Section>
 
@@ -100,9 +101,10 @@ export default function MemberDetailModal({ playerName, allStats = [], handStats
                         <tbody>
                             <Row label="화료 횟수" value={int(winC)} />
                             <Row label="화료율" value={pct(winC, totalHands)} hilite="text-green-700" />
+                            <Row label="쯔모율" value={s.tsumo_rate != null ? `${(Number(s.tsumo_rate) * 100).toFixed(1)}%` : '-'} hilite="text-emerald-700" />
                             <Row label="평균 화료금액" value={int(Math.round(Number(h.avg_win_score) || 0))} />
+                            <Row label="일발률 (리치 후 화료 중)" value={pct(riichiIppatsuC, riichiWinC)} hilite="text-amber-700" />
                             <Row label="리치 포함 화료율" value={pct(riichiWinC, totalHands)} />
-                            <Row label="리치 시 일발 화료율" value={pct(riichiIppatsuC, riichiWinC)} />
                             <Row label="리치 시 쯔모 화료율" value={pct(riichiTsumoC, riichiWinC)} />
                             <Row label="리치 횟수" value={int(riichiC)} />
                             <Row label="리치율" value={pct(riichiC, totalHands)} />
@@ -134,6 +136,15 @@ export default function MemberDetailModal({ playerName, allStats = [], handStats
                             <Row label="종료 시 최고점" value={int(s.max_score)} />
                             <Row label="종료 시 최저점" value={int(s.min_score)} />
                             <Row label="종료 시 평균점" value={num(s.avg_score, 0)} />
+                        </tbody>
+                    </Section>
+
+                    <Section title="자리(착석) 통계">
+                        <tbody>
+                            <Row label="동 자리" value={`${int(s.count_east)}회 · 평균 ${s.avg_rank_east ? Number(s.avg_rank_east).toFixed(2) : '-'}위`} />
+                            <Row label="남 자리" value={`${int(s.count_south)}회 · 평균 ${s.avg_rank_south ? Number(s.avg_rank_south).toFixed(2) : '-'}위`} />
+                            <Row label="서 자리" value={`${int(s.count_west)}회 · 평균 ${s.avg_rank_west ? Number(s.avg_rank_west).toFixed(2) : '-'}위`} />
+                            <Row label="북 자리" value={`${int(s.count_north)}회 · 평균 ${s.avg_rank_north ? Number(s.avg_rank_north).toFixed(2) : '-'}위`} />
                         </tbody>
                     </Section>
 
