@@ -33,8 +33,8 @@ function computeNextHandMeta(hands, multiRonMode = false) {
     const dealerWind = DEALER_WINDS[(last.hand_round_num || 1) - 1];
 
     let isDealerKeep;
-    if (last.win_type === 'abortion' || last.win_type === 'chombo') {
-        // 도중 유국 / 촌보: 항상 친 유지 (본장 +1)
+    if (last.win_type === 'abortion' || last.win_type === 'chombo' || last.win_type === 'late_penalty') {
+        // 도중 유국 / 촌보 / 지각 패널티: 항상 친 유지 (본장 +1 또는 그대로)
         isDealerKeep = true;
     } else if (last.win_type === 'draw') {
         // 유국만관 우선 처리
@@ -55,8 +55,10 @@ function computeNextHandMeta(hands, multiRonMode = false) {
     }
 
     if (isDealerKeep) {
-        // 같은 국 유지. 촌보는 본장 안 늘림, 그 외는 +1
-        const keptHonba = (last.win_type === 'chombo') ? (last.honba || 0) : (last.honba || 0) + 1;
+        // 같은 국 유지. 촌보/지각 패널티는 본장 안 늘림, 그 외는 +1
+        const keptHonba = (last.win_type === 'chombo' || last.win_type === 'late_penalty')
+            ? (last.honba || 0)
+            : (last.honba || 0) + 1;
         return {
             hand_number: last.hand_number + 1,
             hand_wind: last.hand_wind,
@@ -246,7 +248,10 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                 riichi_e: pendingRiichi.e, riichi_s: pendingRiichi.s, riichi_w: pendingRiichi.w, riichi_n: pendingRiichi.n,
                 tenpai_e: false, tenpai_s: false, tenpai_w: false, tenpai_n: false,
                 nagashi_e: false, nagashi_s: false, nagashi_w: false, nagashi_n: false,
-                is_furo: false,
+                // 손패 형태(멘젠/후로) 초기값:
+                //   리치 자리는 후로 불가(=멘젠 한정 役)이므로 자동 멘젠(false)
+                //   그 외에는 null(미선택) — 사용자가 명시적으로 멘젠/후로 선택해야 함
+                is_furo: (winnerWind && pendingRiichi[WIND_TO_FIELD[winnerWind]]) ? false : null,
                 _winnerWind: winnerWind,
             }
         });
@@ -328,6 +333,63 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         }]);
     };
 
+    // === 지각 패널티 ===
+    // 1명당 분배 점수(100 단위)를 입력하면 지각자 -(N×3), 나머지 3명 각 +N
+    // 여러 명 지각이면 콤마 구분 입력 → 각 지각자별 hand 1개씩 추가
+    const recordLatePenalty = () => {
+        const names = seats.filter(s => s.name).map(s => s.name);
+        if (names.length === 0) return;
+        const choice = window.prompt(
+            '지각한 사람 이름을 입력하세요 (여러 명은 콤마로 구분):\n' + names.join(' / ')
+        );
+        if (!choice) return;
+        const lateNames = choice.split(',').map(s => s.trim()).filter(Boolean);
+        if (lateNames.length === 0) return;
+        // 자리에 없는 이름 검증
+        const invalidNames = lateNames.filter(n => !names.includes(n));
+        if (invalidNames.length > 0) {
+            alert('자리에 없는 이름: ' + invalidNames.join(', '));
+            return;
+        }
+        // 중복 제거
+        const uniqueLateNames = [...new Set(lateNames)];
+        if (uniqueLateNames.length >= names.length) {
+            alert('지각자가 모든 인원이 될 수는 없습니다.');
+            return;
+        }
+        const scoreStr = window.prompt(
+            '1명당 분배 점수를 입력하세요 (100 단위, 예: 100, 200, 500)\n' +
+            '입력값 만큼 다른 3명에게 각각 지급되고 지각자는 ×3 만큼 차감됩니다.'
+        );
+        if (!scoreStr) return;
+        const perPerson = parseInt(scoreStr);
+        if (!perPerson || perPerson <= 0) { alert('양수를 입력해주세요.'); return; }
+        if (perPerson % 100 !== 0) { alert('100 단위로 입력해주세요.'); return; }
+        const totalDeduct = perPerson * 3;
+        const desc = uniqueLateNames
+            .map(n => `${n}: −${totalDeduct.toLocaleString()}`)
+            .join(', ');
+        if (!window.confirm(
+            `지각 패널티 처리\n${desc}\n나머지 인원 각 +${perPerson.toLocaleString()}점 (각 지각자별 분배)\n본장 그대로, 친 유지. 진행할까요?`
+        )) return;
+        // 각 지각자별 hand 1개씩 추가 (같은 hand_number, multi_index 1, 2, 3...)
+        setHands(prev => {
+            const baseHand = meta.hand_number;
+            const newHands = uniqueLateNames.map((n, idx) => ({
+                hand_number: baseHand + idx, // 각 지각을 별도 hand 로 (calcNextMeta 가 친 유지 처리)
+                hand_wind: meta.hand_wind,
+                hand_round_num: meta.hand_round_num,
+                honba: meta.honba,
+                win_type: 'late_penalty',
+                late_player: n,
+                late_penalty: perPerson,
+                winner_name: null,
+                deal_in_name: null,
+            }));
+            return [...prev, ...newHands];
+        });
+    };
+
     const undoLastHand = () => {
         if (hands.length === 0) return;
         if (window.confirm('마지막 국 기록을 되돌리시겠습니까?')) {
@@ -339,8 +401,8 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
     const openHandForEdit = (index) => {
         const h = hands[index];
         if (!h) return;
-        if (h.win_type === 'abortion' || h.win_type === 'chombo') {
-            alert('도중유국/촌보는 수정 불가합니다. 🗑 삭제 후 재기록해주세요.');
+        if (h.win_type === 'abortion' || h.win_type === 'chombo' || h.win_type === 'late_penalty') {
+            alert('도중유국/촌보/지각은 수정 불가합니다. 🗑 삭제 후 재기록해주세요.');
             return;
         }
         const winnerSeat = h.winner_name ? seats.find(s => s.name === h.winner_name) : null;
@@ -478,7 +540,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                 </div>
 
                 <details className="border border-slate-200 rounded-lg">
-                    <summary className="cursor-pointer px-3 py-2 text-sm text-slate-600">⚠ 도중유국 / 유국만관 / 촌보</summary>
+                    <summary className="cursor-pointer px-3 py-2 text-sm text-slate-600">⚠ 도중유국 / 유국만관 / 촌보 / 지각</summary>
                     <div className="p-2 grid grid-cols-2 gap-2">
                         <button onClick={() => recordAbortion('kyuushu')} className="py-2 rounded bg-slate-100 text-slate-700 text-sm font-bold">구종구패</button>
                         <button onClick={() => recordAbortion('sufon')} className="py-2 rounded bg-slate-100 text-slate-700 text-sm font-bold">사풍연타</button>
@@ -486,6 +548,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                         <button onClick={() => recordAbortion('suukantsu')} className="py-2 rounded bg-slate-100 text-slate-700 text-sm font-bold">사깡산료</button>
                         <button onClick={recordNagashi} className="col-span-2 py-2 rounded bg-pink-100 text-pink-800 text-sm font-bold">유국만관 <span className="text-[10px] text-pink-500">(자=만관 / 친=친 만관)</span></button>
                         <button onClick={recordChombo} className="col-span-2 py-2 rounded bg-rose-100 text-rose-800 text-sm font-bold">촌보 <span className="text-[10px] text-rose-500">(다른 3명에 각 +3,000)</span></button>
+                        <button onClick={recordLatePenalty} className="col-span-2 py-2 rounded bg-amber-100 text-amber-800 text-sm font-bold">지각 <span className="text-[10px] text-amber-600">(1명당 N점 분배, 100 단위)</span></button>
                     </div>
                 </details>
 
@@ -535,6 +598,9 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                     } else if (h.win_type === 'chombo' && h.chombo_player) {
                                         const d = calcD(h.chombo_player);
                                         if (d !== 0) { deltaText = fmtDelta(d); deltaColor = 'text-red-500'; }
+                                    } else if (h.win_type === 'late_penalty' && h.late_player) {
+                                        const d = calcD(h.late_player);
+                                        if (d !== 0) { deltaText = fmtDelta(d); deltaColor = 'text-red-500'; }
                                     } else if (h.win_type === 'abortion' && h.abortion_type === 'suucha_riichi') {
                                         deltaText = '−1,000×4';
                                         deltaColor = 'text-red-500';
@@ -564,6 +630,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                                     }
                                                     if (h.win_type === 'abortion') return `도중유국 (${({kyuushu:'구종구패',sufon:'사풍연타',suucha_riichi:'사가리치',suukantsu:'사깡산료'})[h.abortion_type] || '?'})`;
                                                     if (h.win_type === 'chombo') return `촌보 (${h.chombo_player || '?'})`;
+                                                    if (h.win_type === 'late_penalty') return `지각 (${h.late_player || '?'}: −${((h.late_penalty || 0) * 3).toLocaleString()})`;
                                                     return `${h.winner_name} ${h.win_type === 'tsumo' ? '쯔모' : '론(' + (h.deal_in_name || '?') + ')'}`;
                                                 })()}
                                                 {deltaText && <span className={'ml-1 font-bold ' + deltaColor}>{deltaText}</span>}
@@ -708,6 +775,11 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         }
         if (d.win_type !== 'draw' && !d.winner_name) {
             alert('화료자가 없습니다.');
+            return;
+        }
+        // 화료(tsumo/ron) 시 손패 형태(멘젠/후로) 필수 선택
+        if ((d.win_type === 'tsumo' || d.win_type === 'ron') && d.is_furo == null) {
+            alert('손패 형태(멘젠/후로)를 선택해주세요.');
             return;
         }
         const hasClass = d.score_class && d.score_class !== 'normal';
@@ -1170,6 +1242,8 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                         deal_in_name: h.win_type === 'ron' ? h.deal_in_name : null,
                         abortion_type: h.win_type === 'abortion' ? h.abortion_type : null,
                         chombo_player: h.win_type === 'chombo' ? h.chombo_player : null,
+                        late_player: h.win_type === 'late_penalty' ? h.late_player : null,
+                        late_penalty: h.win_type === 'late_penalty' ? (parseInt(h.late_penalty) || null) : null,
                         win_score: null,
                         honba: parseInt(h.honba) || 0,
                         han: h.han || null,
