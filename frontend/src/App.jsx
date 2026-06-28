@@ -1405,6 +1405,10 @@ export default function App() {
                                                         }
                                                         if (h.win_type === 'abortion') return <div key={idx} className="text-sm text-amber-700">도중유국 ({ABORT[h.abortion_type] || h.abortion_type})</div>;
                                                         if (h.win_type === 'chombo') return <div key={idx} className="text-sm text-rose-700">촌보 — {h.chombo_player} (−9,000)</div>;
+                                                        if (h.win_type === 'late_penalty') {
+                                                            const per = parseInt(h.late_penalty) || 0;
+                                                            return <div key={idx} className="text-sm text-amber-800">⏰ 지각 — <b>{h.late_player}</b> (−{(per * 3).toLocaleString()}, 나머지 각 +{per.toLocaleString()})</div>;
+                                                        }
                                                         const cls = h.score_class && h.score_class !== 'normal' ? CLS[h.score_class] : '';
                                                         const hf = (!cls && h.han && h.fu) ? `${h.han}판${h.fu}부` : '';
                                                         const hanOnly = (!cls && !hf && h.han) ? `${h.han}판` : '';
