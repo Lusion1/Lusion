@@ -559,7 +559,7 @@ app.get('/api/export-excel', async (req, res) => {
 app.get('/api/daily-stats', async (req, res) => {
 
   try {
-    const result = await pool.query(`SELECT TO_CHAR(match_date, 'YYYY-MM-DD') as match_day, player_name, COUNT(*) as total_matches, SUM(uma) as total_uma, AVG(rank)::numeric as avg_rank, SUM(CASE WHEN rank = 1 THEN 1 ELSE 0 END) as rank1_count, SUM(CASE WHEN rank = 4 THEN 1 ELSE 0 END) as rank4_count, MAX(final_score) as max_score FROM match_results GROUP BY match_day, player_name ORDER BY match_day DESC, total_uma DESC`);
+    const result = await pool.query(`SELECT TO_CHAR(match_date, 'YYYY-MM-DD') as match_day, player_name, COUNT(*) as total_matches, SUM(uma) as total_uma, AVG(rank)::numeric as avg_rank, SUM(CASE WHEN rank = 1 THEN 1 ELSE 0 END) as rank1_count, SUM(CASE WHEN rank = 2 THEN 1 ELSE 0 END) as rank2_count, SUM(CASE WHEN rank = 3 THEN 1 ELSE 0 END) as rank3_count, SUM(CASE WHEN rank = 4 THEN 1 ELSE 0 END) as rank4_count, MAX(final_score) as max_score FROM match_results GROUP BY match_day, player_name ORDER BY match_day DESC, total_uma DESC`);
     res.json(result.rows);
   } catch (err) { res.status(500).send(err.toString()); }
 });
