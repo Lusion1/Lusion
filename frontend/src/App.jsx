@@ -1507,7 +1507,9 @@ export default function App() {
                                         <th className="p-3 text-center">총 우마</th>
                                         <th className="p-3 text-center">평균순위</th>
                                         <th className="p-3 text-center text-yellow-600">1위</th>
-                                        <th className="p-3 text-center text-slate-400">4위</th>
+                                        <th className="p-3 text-center text-slate-600">2위</th>
+                                        <th className="p-3 text-center text-slate-500">3위</th>
+                                        <th className="p-3 text-center text-red-400">4위</th>
                                         <th className="p-3 text-center">최고점</th>
                                     </tr>
                                 </thead>
@@ -1523,8 +1525,10 @@ export default function App() {
                                                 {Number(p.total_uma) > 0 ? '+' : ''}{Number(p.total_uma).toFixed(1)}
                                             </td>
                                             <td className="p-3 text-center font-bold text-slate-700">{Number(p.avg_rank).toFixed(2)}</td>
-                                            <td className="p-3 text-center font-bold text-yellow-600">{p.rank1_count}회</td>
-                                            <td className="p-3 text-center font-bold text-slate-400">{p.rank4_count}회</td>
+                                            <td className="p-3 text-center font-bold text-yellow-600">{p.rank1_count || 0}회</td>
+                                            <td className="p-3 text-center font-bold text-slate-600">{p.rank2_count || 0}회</td>
+                                            <td className="p-3 text-center font-bold text-slate-500">{p.rank3_count || 0}회</td>
+                                            <td className="p-3 text-center font-bold text-red-400">{p.rank4_count || 0}회</td>
                                             <td className="p-3 text-center text-slate-500 text-xs">{Number(p.max_score).toLocaleString()}</td>
                                         </tr>
                                     ))}
