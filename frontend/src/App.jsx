@@ -437,11 +437,11 @@ export default function App() {
 
         return (
             <div className="bg-white shadow-lg rounded-xl p-6 overflow-x-auto">
-                <div className="flex justify-between items-center border-b pb-3 mb-6">
-                    <h2 className="text-2xl font-bold text-slate-800 gap-2 flex items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b pb-3 mb-6">
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-800 gap-2 flex items-center">
                         <span>🏛️</span> 명예의 전당
                     </h2>
-                    <span className="text-sm font-bold bg-slate-100 text-slate-500 px-4 py-1.5 rounded-full border border-slate-200">
+                    <span className="text-xs sm:text-sm font-bold bg-slate-100 text-slate-500 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full border border-slate-200 self-start sm:self-auto">
                         {minMatchesInfo.label} (동점시 판수 우선)
                     </span>
                 </div>
