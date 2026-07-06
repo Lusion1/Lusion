@@ -157,6 +157,23 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         } catch { return { scores: {}, riichiPool: 0, perHand: [], errors: [] }; }
     }, [seatPlayers, hands]);
 
+    // 오라스 종료 시 남은 공탁금(리치봉) 1위 귀속 (표준 룰)
+    // 동점이면 상위 자리 우선 (동 > 남 > 서 > 북)
+    const finalWithPool = useMemo(() => {
+        const raw = ['동','남','서','북'].map(w => {
+            const s = seats.find(x => x.wind === w) || { wind: w, name: '' };
+            const score = Math.round(autoResult.scores[s.name] || 25000);
+            return { wind: s.wind, name: s.name, score };
+        });
+        const pool = Math.round(autoResult.riichiPool || 0);
+        if (pool <= 0) return { list: raw, pool: 0, receiverName: null, receiverWind: null };
+        const order = { '동': 0, '남': 1, '서': 2, '북': 3 };
+        const sorted = [...raw].sort((a, b) => (b.score - a.score) || (order[a.wind] - order[b.wind]));
+        const top = sorted[0];
+        const list = raw.map(p => p.wind === top.wind ? { ...p, score: p.score + pool } : p);
+        return { list, pool, receiverName: top.name, receiverWind: top.wind };
+    }, [seats, autoResult]);
+
     // ===== Step 1: 자리 배정 =====
     const renderSetup = () => {
         const allFilled = seats.every(s => s.name);
@@ -1189,7 +1206,11 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
 
     // ===== Step 4: 종료 / 저장 =====
     const saveToDb = async () => {
-        const finalScores = seats.map(s => ({ ...s, score: Math.round(autoResult.scores[s.name] || 25000) }));
+        // finalWithPool: 오라스 잔여 공탁금이 이미 1위에게 가산된 상태
+        const finalScores = seats.map(s => {
+            const withPool = finalWithPool.list.find(p => p.wind === s.wind);
+            return { ...s, score: withPool ? withPool.score : Math.round(autoResult.scores[s.name] || 25000) };
+        });
         const sorted = [...finalScores].sort((a, b) => b.score - a.score);
         const umaBonus = [40, 10, -10, -20];
         sorted.forEach((p, i) => { p.calculatedRank = i + 1; p.calculatedUma = Number((((p.score - 30000) / 1000) + umaBonus[i]).toFixed(1)); });
@@ -1302,16 +1323,17 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
     };
 
     const renderDone = () => {
-        const orderedFinal = ['동','남','서','북'].map(w => {
-            const s = seats.find(x => x.wind === w);
-            const score = Math.round(autoResult.scores[s.name] || 25000);
-            return { ...s, score };
-        });
-        const sorted = [...orderedFinal].sort((a, b) => b.score - a.score);
+        // finalWithPool: 공탁금이 1위 자리에 이미 가산된 최종 점수
+        const sorted = [...finalWithPool.list].sort((a, b) => b.score - a.score);
         return (
             <div className="p-4 space-y-4">
                 <h2 className="text-xl font-bold text-slate-800">경기 종료 - 저장 확인</h2>
                 <div className="text-sm text-slate-500">총 {hands.length}국 진행</div>
+                {finalWithPool.pool > 0 && (
+                    <div className="text-xs bg-amber-50 border border-amber-200 rounded p-2 text-amber-800">
+                        💰 잔여 공탁금 <b>{finalWithPool.pool.toLocaleString()}점</b> → 1위 <b>{finalWithPool.receiverName}</b> ({finalWithPool.receiverWind}) 에게 귀속 (표준 룰)
+                    </div>
+                )}
                 <table className="w-full text-sm">
                     <thead className="bg-slate-100">
                         <tr><th className="p-2 text-left">순위</th><th>자리</th><th>이름</th><th className="text-right">최종점수</th></tr>
