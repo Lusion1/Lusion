@@ -370,8 +370,10 @@ export function calcClassCounts(players, hands) {
         if (!counts[h.winner_name]) continue;
 
         let cls = h.score_class && h.score_class !== 'normal' ? h.score_class : null;
-        if (!cls && h.han && h.fu) {
-            cls = classifyByHanFu(parseInt(h.han), parseInt(h.fu));
+        // 5판 이상은 fu 무관 만관+ 판정이므로 han 만 있어도 classifyByHanFu 호출.
+        // fu 없으면 0으로 넘겨 4판 이하는 normal 처리됨 (기존 동작 유지).
+        if (!cls && h.han) {
+            cls = classifyByHanFu(parseInt(h.han) || 0, parseInt(h.fu) || 0);
             if (cls === 'normal') cls = null;
         }
         if (!cls) continue;
