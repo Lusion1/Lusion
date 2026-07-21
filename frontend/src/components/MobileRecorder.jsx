@@ -1125,7 +1125,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                     )}
 
                                     <div className="mt-2 flex items-center justify-between gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5">
-                                        <span className="text-xs font-bold text-slate-700">도라 <span className="text-[10px] font-normal text-slate-400">(적도라 포함)</span></span>
+                                        <span className="text-xs font-bold text-slate-700">도라 <span className="text-[10px] font-normal text-slate-400">(적·우라도라 포함)</span></span>
                                         <div className="flex items-center gap-1">
                                             <button type="button" onClick={() => updateDraft({ dora_count: Math.max(0, (parseInt(d.dora_count) || 0) - 1) })} className="w-8 h-8 rounded bg-white border border-slate-300 text-lg font-black active:bg-slate-200">−</button>
                                             <button type="button" onClick={() => updateDraft({ dora_count: (parseInt(d.dora_count) || 0) + 1 })} className="w-10 h-8 rounded bg-white border border-slate-300 text-base font-black text-slate-800 active:bg-slate-100">
@@ -1135,18 +1135,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                         </div>
                                     </div>
 
-                                    {(d.riichi_e || d.riichi_s || d.riichi_w || d.riichi_n) && (
-                                        <div className="mt-2 flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
-                                            <span className="text-xs font-bold text-amber-800">우라도라 <span className="text-[10px] font-normal text-amber-600">(리치 시)</span></span>
-                                            <div className="flex items-center gap-1">
-                                                <button type="button" onClick={() => updateDraft({ ura_dora_count: Math.max(0, (parseInt(d.ura_dora_count) || 0) - 1) })} className="w-8 h-8 rounded bg-white border border-amber-300 text-lg font-black active:bg-amber-200">−</button>
-                                                <button type="button" onClick={() => updateDraft({ ura_dora_count: (parseInt(d.ura_dora_count) || 0) + 1 })} className="w-10 h-8 rounded bg-white border border-amber-300 text-base font-black text-slate-800 active:bg-amber-100">
-                                                    {d.ura_dora_count || 0}
-                                                </button>
-                                                <button type="button" onClick={() => updateDraft({ ura_dora_count: (parseInt(d.ura_dora_count) || 0) + 1 })} className="w-8 h-8 rounded bg-white border border-amber-300 text-lg font-black active:bg-amber-200">+</button>
-                                            </div>
-                                        </div>
-                                    )}
+                                    {/* 우라도라 입력은 도라에 통합됨 (2026-06 클럽 룰 단순화) */}
                                 </div>
 
                                 {(() => {

@@ -160,9 +160,7 @@ export default function HandRow({ hand, players, onChange, onRemove }) {
                                 <span className="text-slate-300 mx-1">|</span>
                                 <label className="inline-flex items-center gap-1"><input type="checkbox" checked={!!hand.is_ippatsu} onChange={e => set('is_ippatsu', e.target.checked)} /><b>일발</b></label>
                                 <span className="mx-2 text-slate-300">|</span>
-                                <label className="inline-flex items-center gap-1">도라 <input type="number" min="0" value={hand.dora_count || 0} onChange={e => set('dora_count', parseInt(e.target.value) || 0)} className="w-12 p-1 border border-slate-300 rounded text-center" /></label>
-                                <label className="inline-flex items-center gap-1">적도라 <input type="number" min="0" value={hand.aka_dora_count || 0} onChange={e => set('aka_dora_count', parseInt(e.target.value) || 0)} className="w-12 p-1 border border-slate-300 rounded text-center" /></label>
-                                <label className="inline-flex items-center gap-1">우라도라 <input type="number" min="0" value={hand.ura_dora_count || 0} onChange={e => set('ura_dora_count', parseInt(e.target.value) || 0)} className="w-12 p-1 border border-slate-300 rounded text-center" /></label>
+                                <label className="inline-flex items-center gap-1">도라<span className="text-[10px] text-slate-400">(적·우라 포함)</span> <input type="number" min="0" value={hand.dora_count || 0} onChange={e => set('dora_count', parseInt(e.target.value) || 0)} className="w-12 p-1 border border-slate-300 rounded text-center" /></label>
                             </div>
 
                             {/* 役 체크박스 (그룹별) */}
