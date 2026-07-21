@@ -1418,8 +1418,9 @@ export default function App() {
                                                         const extras = [];
                                                         if (h.is_riichi) extras.push('리치');
                                                         if (h.is_ippatsu) extras.push('일발');
-                                                        if ((h.dora_count || 0) > 0) extras.push(`도라${h.dora_count}`);
-                                                        if ((h.ura_dora_count || 0) > 0) extras.push(`우라${h.ura_dora_count}`);
+                                                        // 도라·우라도라 통합 표시 (옛 데이터의 ura 값도 합산)
+                                                        const doraTotal = (parseInt(h.dora_count) || 0) + (parseInt(h.ura_dora_count) || 0);
+                                                        if (doraTotal > 0) extras.push(`도라${doraTotal}`);
                                                         return (
                                                             <div key={idx} className="text-sm text-slate-700">
                                                                 <span className="font-bold">{h.winner_name}</span> {winType}
