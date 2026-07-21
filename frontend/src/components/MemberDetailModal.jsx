@@ -150,13 +150,31 @@ export default function MemberDetailModal({ playerName, allStats = [], handStats
 
                     <Section title="화료 판수 (등급별)">
                         <tbody>
-                            <Row label="만관" value={int(s.total_mangan)} />
-                            <Row label="하네만" value={int(s.total_haneman)} />
-                            <Row label="배만" value={int(s.total_baiman)} />
-                            <Row label="삼배만" value={int(s.total_sanbaiman)} />
-                            <Row label="역만" value={int(s.total_yakuman)} />
-                            <Row label="헤아림 역만" value={int(s.total_kazoeyakuman)} />
-                            <Row label="더블 역만 이상" value={int(s.total_doubleyakuman)} />
+                            {(() => {
+                                // 화료 횟수(hand 기반) 대비 등급 비율.
+                                // 만관 카운트는 결과만 등록 라운드도 포함될 수 있어 근사치 (*각주)
+                                const gradeVal = (v) => {
+                                    const n = parseInt(v) || 0;
+                                    if (winC > 0 && n > 0) return `${n.toLocaleString()}회 (${((n / winC) * 100).toFixed(1)}%)`;
+                                    return `${n.toLocaleString()}회`;
+                                };
+                                return (
+                                    <>
+                                        <Row label="만관" value={gradeVal(s.total_mangan)} />
+                                        <Row label="하네만" value={gradeVal(s.total_haneman)} />
+                                        <Row label="배만" value={gradeVal(s.total_baiman)} />
+                                        <Row label="삼배만" value={gradeVal(s.total_sanbaiman)} />
+                                        <Row label="역만" value={gradeVal(s.total_yakuman)} />
+                                        <Row label="헤아림 역만" value={gradeVal(s.total_kazoeyakuman)} />
+                                        <Row label="더블 역만 이상" value={gradeVal(s.total_doubleyakuman)} />
+                                        <tr>
+                                            <td colSpan="2" className="px-3 py-1 text-[10px] text-slate-400">
+                                                * %는 화료 {winC.toLocaleString()}회(한 국씩 입력 기준) 대비 비율. 결과만 등록 기록 포함 시 근사치
+                                            </td>
+                                        </tr>
+                                    </>
+                                );
+                            })()}
                         </tbody>
                     </Section>
 
