@@ -481,13 +481,18 @@ app.get('/api/hand-stats', async (req, res) => {
         COUNT(*) FILTER (WHERE winner_name = player_name AND score_class = 'baiman')       AS baiman_h_count,
         COUNT(*) FILTER (WHERE winner_name = player_name AND score_class = 'sanbaiman')    AS sanbaiman_h_count,
         COUNT(*) FILTER (WHERE winner_name = player_name AND score_class IN ('yakuman','kazoe_yakuman','double_yakuman','triple_yakuman')) AS yakuman_h_count,
+        COUNT(*) FILTER (WHERE winner_name = player_name AND score_class = 'yakuman')        AS yakuman_only_h_count,
+        COUNT(*) FILTER (WHERE winner_name = player_name AND score_class = 'kazoe_yakuman')  AS kazoe_h_count,
+        COUNT(*) FILTER (WHERE winner_name = player_name AND score_class IN ('double_yakuman','triple_yakuman')) AS double_h_count,
         COUNT(*) FILTER (WHERE my_riichi)                                       AS riichi_count,
         COUNT(*) FILTER (WHERE my_riichi AND winner_name = player_name)         AS riichi_win_count,
         COUNT(*) FILTER (WHERE my_riichi AND winner_name = player_name AND is_ippatsu)        AS riichi_ippatsu_count,
         COUNT(*) FILTER (WHERE my_riichi AND winner_name = player_name AND win_type = 'tsumo') AS riichi_tsumo_count,
         COUNT(*) FILTER (WHERE winner_name = player_name AND is_furo IS NOT NULL) AS furo_known_wins,
         COUNT(*) FILTER (WHERE winner_name = player_name AND is_furo IS TRUE) AS furo_wins,
-        COUNT(*) FILTER (WHERE winner_name = player_name AND is_furo IS FALSE) AS menzen_wins
+        COUNT(*) FILTER (WHERE winner_name = player_name AND is_furo IS FALSE) AS menzen_wins,
+        (SELECT MIN(match_round) FROM hand_results)                             AS first_hand_round,
+        (SELECT TO_CHAR(MIN(match_date), 'YYYY-MM-DD') FROM hand_results)       AS first_hand_date
       FROM hand_player
       GROUP BY player_name
       ORDER BY total_hands DESC
