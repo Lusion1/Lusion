@@ -148,30 +148,31 @@ export default function MemberDetailModal({ playerName, allStats = [], handStats
                         </tbody>
                     </Section>
 
-                    <Section title="화료 판수 (등급별)">
+                    <Section title={
+                        <span
+                            title={`국별(한 국씩 입력) 기록이 시작된 R${h.first_hand_round || '?'}${h.first_hand_date ? ` (${h.first_hand_date})` : ''}부터의 화료만 집계합니다. 이전 라운드의 기록은 포함되지 않습니다.`}
+                            className="cursor-help"
+                        >
+                            화료 판수 (등급별) <span className="text-slate-400 text-xs">ⓘ</span>
+                        </span>
+                    }>
                         <tbody>
                             {(() => {
-                                // 화료 횟수(hand 기반) 대비 등급 비율.
-                                // 만관 카운트는 결과만 등록 라운드도 포함될 수 있어 근사치 (*각주)
-                                const gradeVal = (v) => {
-                                    const n = parseInt(v) || 0;
-                                    if (winC > 0 && n > 0) return `${n.toLocaleString()}회 (${((n / winC) * 100).toFixed(1)}%)`;
-                                    return `${n.toLocaleString()}회`;
+                                // 횟수·% 모두 국별(hand) 기록 있는 라운드 기준 → 분자·분모 일치, 항상 정확
+                                const gradeVal = (handCnt) => {
+                                    const hc = parseInt(handCnt) || 0;
+                                    if (winC > 0 && hc > 0) return `${hc.toLocaleString()}회 (${((hc / winC) * 100).toFixed(1)}%)`;
+                                    return `${hc.toLocaleString()}회`;
                                 };
                                 return (
                                     <>
-                                        <Row label="만관" value={gradeVal(s.total_mangan)} />
-                                        <Row label="하네만" value={gradeVal(s.total_haneman)} />
-                                        <Row label="배만" value={gradeVal(s.total_baiman)} />
-                                        <Row label="삼배만" value={gradeVal(s.total_sanbaiman)} />
-                                        <Row label="역만" value={gradeVal(s.total_yakuman)} />
-                                        <Row label="헤아림 역만" value={gradeVal(s.total_kazoeyakuman)} />
-                                        <Row label="더블 역만 이상" value={gradeVal(s.total_doubleyakuman)} />
-                                        <tr>
-                                            <td colSpan="2" className="px-3 py-1 text-[10px] text-slate-400">
-                                                * %는 화료 {winC.toLocaleString()}회(한 국씩 입력 기준) 대비 비율. 결과만 등록 기록 포함 시 근사치
-                                            </td>
-                                        </tr>
+                                        <Row label="만관" value={gradeVal(h.mangan_h_count)} />
+                                        <Row label="하네만" value={gradeVal(h.haneman_h_count)} />
+                                        <Row label="배만" value={gradeVal(h.baiman_h_count)} />
+                                        <Row label="삼배만" value={gradeVal(h.sanbaiman_h_count)} />
+                                        <Row label="역만" value={gradeVal(h.yakuman_only_h_count)} />
+                                        <Row label="헤아림 역만" value={gradeVal(h.kazoe_h_count)} />
+                                        <Row label="더블 역만 이상" value={gradeVal(h.double_h_count)} />
                                     </>
                                 );
                             })()}
