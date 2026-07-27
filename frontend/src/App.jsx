@@ -7,6 +7,30 @@ import SuggestionBoard from './components/SuggestionBoard.jsx';
 import { calcScore, calcRoundResult, calcClassCounts } from './lib/score.js';
 
 const API_BASE = '/api';
+const CURRENT_YEAR = String(new Date().getFullYear());
+const YEAR_OPTIONS = ['all', String(Number(CURRENT_YEAR) - 1), CURRENT_YEAR];
+const STAT_FIELDS = [
+    { key: 'total_matches', label: '총 게임수' },
+    { key: 'avg_rank', label: '평균 순위' },
+    { key: 'avg_uma', label: '평균 우마' },
+    { key: 'total_uma', label: '총 우마' },
+    { key: 'rank1_rate', label: '1위율' },
+    { key: 'rank2_rate', label: '2위율' },
+    { key: 'rank3_rate', label: '3위율' },
+    { key: 'rank4_rate', label: '4위율' },
+    { key: 'tobi_rate', label: '토비율' },
+    { key: 'rank12_rate', label: '연대율' },
+    { key: 'win_rate', label: '화료율*' },
+    { key: 'tsumo_rate', label: '쯔모율*' },
+    { key: 'furo_rate', label: '후로율*' },
+    { key: 'ippatsu_rate', label: '일발률' },
+    { key: 'avg_win_score', label: '평균 화료 금액' },
+    { key: 'deal_in_rate', label: '방총율*' },
+    { key: 'avg_deal_in_score', label: '평균 방총 금액' },
+    { key: 'max_score', label: '최고 점수' },
+    { key: 'min_score', label: '최저 점수' },
+    { key: 'avg_score', label: '평균 점수' },
+];
 
 export default function App() {
     const [authToken, setAuthToken] = useState(localStorage.getItem('mahjong_token') || null);
@@ -33,8 +57,13 @@ export default function App() {
     const [records, setRecords] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [statsSearchQuery, setStatsSearchQuery] = useState('');
+    const [selectedStatsPlayers, setSelectedStatsPlayers] = useState([]);
+    const [statsPlayerMode, setStatsPlayerMode] = useState('filter');
+    const [isStatsPlayerSuggestionsOpen, setIsStatsPlayerSuggestionsOpen] = useState(false);
+    const [isStatsFilterOpen, setIsStatsFilterOpen] = useState(false);
+    const [visibleStatsFields, setVisibleStatsFields] = useState(() => STAT_FIELDS.map(field => field.key));
     const [currentPage, setCurrentPage] = useState(1);
-    const [globalYear, setGlobalYear] = useState('2026');
+    const [globalYear, setGlobalYear] = useState(CURRENT_YEAR);
 
     // New Record State
     const getTodayString = () => {
@@ -447,11 +476,11 @@ export default function App() {
                 </div>
 
                 <div className="table-scroll">
-                <table className="data-table w-full text-center text-sm whitespace-nowrap min-w-[800px]">
+                <table className="data-table w-full text-center text-sm whitespace-nowrap min-w-[740px]">
                     <thead>
                         <tr className="bg-slate-900 text-white border-b-2 border-slate-700 sticky-top">
-                            <th className="p-3 border-r border-slate-700 rounded-tl-lg font-bold">타이틀</th>
-                            <th className="p-3 border-r border-slate-700 font-bold">항목</th>
+                            <th className="sticky-corner bg-slate-900 w-[124px] min-w-[124px] max-w-[124px] px-3 py-2.5 border-r border-slate-700 font-bold text-left">타이틀</th>
+                            <th className="w-[112px] min-w-[112px] max-w-[112px] px-3 py-2.5 border-r border-slate-700 font-bold">항목</th>
                             <th colSpan="2" className="p-3 border-r border-slate-700 font-bold text-yellow-500">🥇 1위</th>
                             <th colSpan="2" className="p-3 border-r border-slate-700 font-bold text-slate-400">🥈 2위</th>
                             <th colSpan="2" className="p-3 rounded-tr-lg font-bold text-orange-400">🥉 3위</th>
@@ -462,8 +491,8 @@ export default function App() {
                             const top3 = getSortedForCategory(cat.key, cat.sort);
                             return (
                                 <tr key={idx} className="border-b transition hover:bg-slate-50 border-slate-100">
-                                    <td className="p-3 font-bold text-slate-800 border-r border-slate-100 bg-slate-50 text-left">{cat.title}</td>
-                                    <td className="p-3 font-medium text-slate-600 border-r border-slate-100">{cat.item}</td>
+                                    <td className="sticky-column w-[124px] min-w-[124px] max-w-[124px] px-3 py-2.5 font-bold text-slate-800 border-r border-slate-200 bg-slate-50 text-left whitespace-normal leading-snug">{cat.title}</td>
+                                    <td className="w-[112px] min-w-[112px] max-w-[112px] px-3 py-2.5 font-medium text-slate-600 border-r border-slate-100 whitespace-nowrap">{cat.item}</td>
 
                                     <td className="p-3 font-black text-slate-800 border-r border-slate-100">{top3[0]?.player_name || '-'}</td>
                                     <td className={`p-3 font-bold border-r border-slate-100 ${top3[0] ? 'text-orange-600' : 'text-slate-400'}`}>
@@ -565,84 +594,225 @@ export default function App() {
                 >?</span>
             );
         };
+        const showField = (key) => visibleStatsFields.includes(key);
+        const toggleField = (key) => {
+            setVisibleStatsFields(prev => prev.includes(key)
+                ? prev.filter(field => field !== key)
+                : [...prev, key]);
+        };
+        const addStatsPlayer = (rawName) => {
+            const trimmedName = rawName.trim();
+            const query = trimmedName.toLowerCase();
+            if (!query) return;
+            const exact = stats.find(s => s.player_name.toLowerCase() === query);
+            const partial = stats.find(s => s.player_name.toLowerCase().includes(query));
+            const player = exact || partial;
+            const nameToAdd = player?.player_name || trimmedName;
+            if (!selectedStatsPlayers.some(name => name.toLowerCase() === nameToAdd.toLowerCase())) {
+                setSelectedStatsPlayers(prev => [...prev, nameToAdd]);
+            }
+            setStatsSearchQuery('');
+            setIsStatsPlayerSuggestionsOpen(false);
+        };
+        const statsPlayerSuggestions = stats
+            .filter(s => !selectedStatsPlayers.includes(s.player_name))
+            .filter(s => !statsSearchQuery.trim() || s.player_name.toLowerCase().includes(statsSearchQuery.trim().toLowerCase()))
+            .slice(0, 8);
+        const filteredStats = statsPlayerMode === 'filter' && selectedStatsPlayers.length > 0
+            ? sortedStats.filter(s => selectedStatsPlayers.includes(s.player_name))
+            : sortedStats;
         return (
         <div className="bg-white shadow-lg rounded-xl overflow-hidden">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b p-6 gap-4">
+            <div className="border-b p-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <h2 className="text-2xl font-bold text-slate-800">
                     전체 통계 <span className="text-sm font-normal text-slate-400 ml-2">(헤더를 클릭하면 정렬됩니다)</span>
                     <span className="block text-[11px] font-normal text-slate-500 mt-1">* 표시 컬럼은 &lsquo;한 국씩 입력&rsquo; 으로 저장된 국 기준 (옛 결과만 등록 기록은 제외)</span>
                 </h2>
-                <input
-                    type="text"
-                    placeholder="플레이어 이름 검색 (강조)..."
-                    value={statsSearchQuery}
-                    onChange={(e) => setStatsSearchQuery(e.target.value)}
-                    className="w-full md:w-64 border-2 border-slate-200 p-2 rounded-lg bg-slate-50 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 transition"
-                />
+                <button
+                    type="button"
+                    onClick={() => setIsStatsFilterOpen(open => !open)}
+                    className="w-full md:w-auto px-3 py-2 rounded-lg border border-slate-300 bg-slate-50 text-sm text-slate-700 font-bold hover:bg-slate-100 flex items-center justify-center gap-2"
+                    aria-expanded={isStatsFilterOpen}
+                >
+                    <span>필터</span>
+                    <span className="text-xs text-slate-400">{isStatsFilterOpen ? '▲' : '▼'}</span>
+                </button>
+                </div>
+
+                {isStatsFilterOpen && (
+                    <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div className="text-xs font-bold text-slate-600 w-14 shrink-0">연도</div>
+                            <div className="inline-flex bg-white rounded-lg p-1 border border-slate-200 max-w-full overflow-x-auto">
+                                {YEAR_OPTIONS.map(year => (
+                                    <button
+                                        key={year}
+                                        type="button"
+                                        onClick={() => setGlobalYear(year)}
+                                        className={`px-3 py-1.5 rounded-md font-bold text-xs whitespace-nowrap transition ${globalYear === year ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
+                                    >
+                                        {year === 'all' ? '전체' : `${year}년`}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="border-t border-slate-200 pt-3">
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                                <label htmlFor="stats-player-filter" className="text-xs font-bold text-slate-600 w-14 shrink-0">플레이어</label>
+                                <div className="inline-flex rounded-md border border-slate-200 bg-white p-0.5">
+                                    <button type="button" onClick={() => setStatsPlayerMode('filter')} className={`px-2.5 py-1 rounded text-[11px] font-bold ${statsPlayerMode === 'filter' ? 'bg-slate-800 text-white' : 'text-slate-500'}`}>해당 플레이어만 보기</button>
+                                    <button type="button" onClick={() => setStatsPlayerMode('highlight')} className={`px-2.5 py-1 rounded text-[11px] font-bold ${statsPlayerMode === 'highlight' ? 'bg-orange-500 text-white' : 'text-slate-500'}`}>해당 플레이어만 강조</button>
+                                </div>
+                            </div>
+                            <div className="relative">
+                                <div className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white p-1.5 focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500">
+                                    <input
+                                        id="stats-player-filter"
+                                        type="text"
+                                        placeholder={selectedStatsPlayers.length ? '플레이어 추가…' : '이름을 입력하거나 목록에서 선택하세요'}
+                                        value={statsSearchQuery}
+                                        onFocus={() => setIsStatsPlayerSuggestionsOpen(true)}
+                                        onChange={(e) => {
+                                            setStatsSearchQuery(e.target.value);
+                                            setIsStatsPlayerSuggestionsOpen(true);
+                                        }}
+                                        onBlur={() => window.setTimeout(() => setIsStatsPlayerSuggestionsOpen(false), 120)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ',') {
+                                                e.preventDefault();
+                                                addStatsPlayer(statsSearchQuery);
+                                            } else if (e.key === 'Backspace' && !statsSearchQuery && selectedStatsPlayers.length) {
+                                                setSelectedStatsPlayers(prev => prev.slice(0, -1));
+                                            }
+                                        }}
+                                        className="min-w-[140px] flex-1 border-0 px-2 py-1 text-sm bg-transparent focus:outline-none"
+                                    />
+                                    {statsSearchQuery && <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => addStatsPlayer(statsSearchQuery)} className="px-2 py-1 rounded bg-slate-800 text-white text-xs font-bold">추가</button>}
+                                </div>
+
+                                {isStatsPlayerSuggestionsOpen && (
+                                    <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl">
+                                        {statsPlayerSuggestions.length > 0 ? statsPlayerSuggestions.map(s => (
+                                            <button
+                                                key={s.player_name}
+                                                type="button"
+                                                onMouseDown={(e) => e.preventDefault()}
+                                                onClick={() => addStatsPlayer(s.player_name)}
+                                                className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-orange-50 hover:text-orange-800"
+                                            >
+                                                {s.player_name}
+                                            </button>
+                                        )) : (
+                                            <div className="px-3 py-2 text-xs text-slate-400">일치하는 플레이어가 없습니다.</div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {selectedStatsPlayers.length > 0 && (
+                                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                    {selectedStatsPlayers.map(name => (
+                                        <span key={name} className="inline-flex items-center gap-1.5 rounded-md bg-orange-100 text-orange-800 border border-orange-200 px-2 py-1 text-xs font-bold">
+                                            {name}
+                                            <button type="button" onClick={() => setSelectedStatsPlayers(prev => prev.filter(player => player !== name))} className="flex h-4 w-4 items-center justify-center rounded text-orange-500 hover:bg-orange-200 hover:text-orange-900" aria-label={`${name} 제거`}>×</button>
+                                        </span>
+                                    ))}
+                                    <button type="button" onClick={() => setSelectedStatsPlayers([])} className="px-2 py-1 text-[11px] text-slate-400 hover:text-slate-700">모두 제거</button>
+                                </div>
+                            )}
+                        </div>
+
+                        <fieldset className="border-t border-slate-200 pt-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                                <legend className="text-xs font-bold text-slate-600">표시 필드 <span className="font-normal text-slate-400">{visibleStatsFields.length}/{STAT_FIELDS.length}</span></legend>
+                                <div className="flex gap-2">
+                                    <button type="button" onClick={() => setVisibleStatsFields(STAT_FIELDS.map(field => field.key))} className="text-[11px] font-bold text-slate-600 hover:text-orange-600">전체 선택</button>
+                                    <span className="text-slate-300">·</span>
+                                    <button type="button" onClick={() => setVisibleStatsFields([])} className="text-[11px] font-bold text-slate-600 hover:text-orange-600">전체 해제</button>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                                {STAT_FIELDS.map(field => (
+                                    <label key={field.key} className={`inline-flex h-7 items-center rounded-md border px-2.5 text-[11px] font-bold cursor-pointer transition-colors ${showField(field.key) ? 'border-emerald-300 bg-emerald-100 text-emerald-800' : 'border-slate-200 bg-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-200'}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={showField(field.key)}
+                                            onChange={() => toggleField(field.key)}
+                                            className="sr-only"
+                                        />
+                                        <span>{field.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </fieldset>
+                    </div>
+                )}
             </div>
             <div className="table-scroll max-h-[70vh] overflow-y-auto">
             <table className="data-table w-full text-left text-sm whitespace-nowrap">
                 <thead className="sticky top-0 z-30">
                     <tr className="bg-slate-900 text-white text-center cursor-pointer select-none">
                         <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition sticky-corner bg-slate-900" onClick={() => requestSort('player_name')}>이름 {getSortIndicator('player_name')}<InfoIcon k='player_name' /></th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('total_matches')}>총 게임수 {getSortIndicator('total_matches')}<InfoIcon k='total_matches' /></th>
-                        <th className="p-3 border-r border-slate-700 text-orange-400 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank')}>평균 순위 {getSortIndicator('avg_rank')}<InfoIcon k='avg_rank' /></th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('avg_uma')}>평균 우마 {getSortIndicator('avg_uma')}<InfoIcon k='avg_uma' /></th>
-                        <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition" onClick={() => requestSort('total_uma')}>총 우마 {getSortIndicator('total_uma')}<InfoIcon k='total_uma' /></th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank1_rate')}>1위율 {getSortIndicator('rank1_rate')}<InfoIcon k='rank1_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank2_rate')}>2위율 {getSortIndicator('rank2_rate')}<InfoIcon k='rank2_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank3_rate')}>3위율 {getSortIndicator('rank3_rate')}<InfoIcon k='rank3_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 text-red-300 hover:bg-slate-800 transition" onClick={() => requestSort('rank4_rate')}>4위율 {getSortIndicator('rank4_rate')}<InfoIcon k='rank4_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 text-purple-300 hover:bg-slate-800 transition" onClick={() => requestSort('tobi_rate')}>토비율 {getSortIndicator('tobi_rate')}<InfoIcon k='tobi_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank12_rate')}>연대율 {getSortIndicator('rank12_rate')}<InfoIcon k='rank12_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('win_rate')}>화료율*  {getSortIndicator('win_rate')}<InfoIcon k='win_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 text-emerald-300 hover:bg-slate-800 transition" onClick={() => requestSort('tsumo_rate')}>쯔모율*  {getSortIndicator('tsumo_rate')}<InfoIcon k='tsumo_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 text-amber-300 hover:bg-slate-800 transition" onClick={() => requestSort('furo_rate')}>후로율*  {getSortIndicator('furo_rate')}<InfoIcon k='furo_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 text-amber-300 hover:bg-slate-800 transition" onClick={() => requestSort('ippatsu_rate')}>일발률 {getSortIndicator('ippatsu_rate')}<InfoIcon k='ippatsu_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_win_score')}>평균 화료 금액 {getSortIndicator('avg_win_score')}<InfoIcon k='avg_win_score' /></th>
-                        <th className="p-3 border-r border-slate-700 text-rose-300 hover:bg-slate-800 transition" onClick={() => requestSort('deal_in_rate')}>방총율*  {getSortIndicator('deal_in_rate')}<InfoIcon k='deal_in_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 text-rose-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_deal_in_score')}>평균 방총 금액 {getSortIndicator('avg_deal_in_score')}<InfoIcon k='avg_deal_in_score' /></th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('max_score')}>최고 점수 {getSortIndicator('max_score')}<InfoIcon k='max_score' /></th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('min_score')}>최저 점수 {getSortIndicator('min_score')}<InfoIcon k='min_score' /></th>
-                        <th className="p-3 rounded-tr-lg hover:bg-slate-800 transition" onClick={() => requestSort('avg_score')}>평균 점수 {getSortIndicator('avg_score')}<InfoIcon k='avg_score' /></th>
+                        {showField('total_matches') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('total_matches')}>총 게임수 {getSortIndicator('total_matches')}<InfoIcon k='total_matches' /></th>}
+                        {showField('avg_rank') && <th className="p-3 border-r border-slate-700 text-orange-400 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank')}>평균 순위 {getSortIndicator('avg_rank')}<InfoIcon k='avg_rank' /></th>}
+                        {showField('avg_uma') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('avg_uma')}>평균 우마 {getSortIndicator('avg_uma')}<InfoIcon k='avg_uma' /></th>}
+                        {showField('total_uma') && <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition" onClick={() => requestSort('total_uma')}>총 우마 {getSortIndicator('total_uma')}<InfoIcon k='total_uma' /></th>}
+                        {showField('rank1_rate') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank1_rate')}>1위율 {getSortIndicator('rank1_rate')}<InfoIcon k='rank1_rate' /></th>}
+                        {showField('rank2_rate') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank2_rate')}>2위율 {getSortIndicator('rank2_rate')}<InfoIcon k='rank2_rate' /></th>}
+                        {showField('rank3_rate') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank3_rate')}>3위율 {getSortIndicator('rank3_rate')}<InfoIcon k='rank3_rate' /></th>}
+                        {showField('rank4_rate') && <th className="p-3 border-r border-slate-700 text-red-300 hover:bg-slate-800 transition" onClick={() => requestSort('rank4_rate')}>4위율 {getSortIndicator('rank4_rate')}<InfoIcon k='rank4_rate' /></th>}
+                        {showField('tobi_rate') && <th className="p-3 border-r border-slate-700 text-purple-300 hover:bg-slate-800 transition" onClick={() => requestSort('tobi_rate')}>토비율 {getSortIndicator('tobi_rate')}<InfoIcon k='tobi_rate' /></th>}
+                        {showField('rank12_rate') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank12_rate')}>연대율 {getSortIndicator('rank12_rate')}<InfoIcon k='rank12_rate' /></th>}
+                        {showField('win_rate') && <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('win_rate')}>화료율* {getSortIndicator('win_rate')}<InfoIcon k='win_rate' /></th>}
+                        {showField('tsumo_rate') && <th className="p-3 border-r border-slate-700 text-emerald-300 hover:bg-slate-800 transition" onClick={() => requestSort('tsumo_rate')}>쯔모율* {getSortIndicator('tsumo_rate')}<InfoIcon k='tsumo_rate' /></th>}
+                        {showField('furo_rate') && <th className="p-3 border-r border-slate-700 text-amber-300 hover:bg-slate-800 transition" onClick={() => requestSort('furo_rate')}>후로율* {getSortIndicator('furo_rate')}<InfoIcon k='furo_rate' /></th>}
+                        {showField('ippatsu_rate') && <th className="p-3 border-r border-slate-700 text-amber-300 hover:bg-slate-800 transition" onClick={() => requestSort('ippatsu_rate')}>일발률 {getSortIndicator('ippatsu_rate')}<InfoIcon k='ippatsu_rate' /></th>}
+                        {showField('avg_win_score') && <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_win_score')}>평균 화료 금액 {getSortIndicator('avg_win_score')}<InfoIcon k='avg_win_score' /></th>}
+                        {showField('deal_in_rate') && <th className="p-3 border-r border-slate-700 text-rose-300 hover:bg-slate-800 transition" onClick={() => requestSort('deal_in_rate')}>방총율* {getSortIndicator('deal_in_rate')}<InfoIcon k='deal_in_rate' /></th>}
+                        {showField('avg_deal_in_score') && <th className="p-3 border-r border-slate-700 text-rose-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_deal_in_score')}>평균 방총 금액 {getSortIndicator('avg_deal_in_score')}<InfoIcon k='avg_deal_in_score' /></th>}
+                        {showField('max_score') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('max_score')}>최고 점수 {getSortIndicator('max_score')}<InfoIcon k='max_score' /></th>}
+                        {showField('min_score') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('min_score')}>최저 점수 {getSortIndicator('min_score')}<InfoIcon k='min_score' /></th>}
+                        {showField('avg_score') && <th className="p-3 rounded-tr-lg hover:bg-slate-800 transition" onClick={() => requestSort('avg_score')}>평균 점수 {getSortIndicator('avg_score')}<InfoIcon k='avg_score' /></th>}
                     </tr>
                 </thead>
                 <tbody>
-                    {sortedStats.map((s, idx) => {
-                        const isHighlighted = statsSearchQuery.trim() !== '' && s.player_name.toLowerCase().includes(statsSearchQuery.toLowerCase());
+                    {filteredStats.map((s, idx) => {
+                        const isHighlighted = statsPlayerMode === 'highlight' && selectedStatsPlayers.includes(s.player_name);
                         return (
-                            <tr key={s.player_name} className={`group border-b transition text-center ${isHighlighted ? 'bg-orange-100 hover:bg-orange-200 border-orange-300' : 'hover:bg-slate-50 border-slate-100'}`}>
-                                <td className={`p-3 font-bold border-r sticky-column cursor-pointer hover:underline ${isHighlighted ? 'border-orange-200 text-orange-900 bg-orange-100' : 'border-slate-100 text-slate-800 bg-white group-hover:bg-slate-50'}`} onClick={() => setDetailMember(s.player_name)} title="클릭: 상세 통계"><span className="text-xs text-slate-400 mr-1">{idx + 1}</span> {s.player_name}</td>
-                                <td className={`p-3 font-medium border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{s.total_matches}</td>
-                                <td className={`p-3 font-black border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${getRankColor(idx)}`}>{Number(s.avg_rank).toFixed(2)}</td>
-                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.avg_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.avg_uma).toFixed(2)}</td>
-                                <td className={`p-3 font-black border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.total_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.total_uma).toFixed(1)}</td>
-                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{(s.rank1_rate * 100).toFixed(1)}%</td>
-                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{(s.rank2_rate * 100).toFixed(1)}%</td>
-                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{(s.rank3_rate * 100).toFixed(1)}%</td>
-                                <td className={`p-3 border-r text-red-500 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(s.rank4_rate * 100).toFixed(1)}%</td>
-                                <td className={`p-3 font-bold border-r text-purple-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(s.tobi_rate * 100).toFixed(1)}%</td>
-                                <td className={`p-3 font-bold border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${(s.rank12_rate * 100) >= 50 ? 'text-green-600' : ''}`}>{(s.rank12_rate * 100).toFixed(1)}%</td>
-                                <td className={`p-3 font-bold border-r text-green-700 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>
+                            <tr key={s.player_name} className={`group border-b transition text-center ${isHighlighted ? 'bg-orange-100 border-orange-200 hover:bg-orange-200' : 'hover:bg-slate-50 border-slate-100'}`}>
+                                <td className={`p-3 font-bold border-r sticky-column cursor-pointer hover:underline ${isHighlighted ? 'border-orange-200 text-orange-900 bg-orange-100 group-hover:bg-orange-200' : 'border-slate-100 text-slate-800 bg-white group-hover:bg-slate-50'}`} onClick={() => setDetailMember(s.player_name)} title="클릭: 상세 통계"><span className="text-xs text-slate-400 mr-1">{idx + 1}</span> {s.player_name}</td>
+                                {showField('total_matches') && <td className="p-3 font-medium border-r border-slate-100">{s.total_matches}</td>}
+                                {showField('avg_rank') && <td className={`p-3 font-black border-r border-slate-100 ${getRankColor(idx)}`}>{Number(s.avg_rank).toFixed(2)}</td>}
+                                {showField('avg_uma') && <td className={`p-3 border-r border-slate-100 ${s.avg_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.avg_uma).toFixed(2)}</td>}
+                                {showField('total_uma') && <td className={`p-3 font-black border-r border-slate-100 ${s.total_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.total_uma).toFixed(1)}</td>}
+                                {showField('rank1_rate') && <td className="p-3 border-r border-slate-100">{(s.rank1_rate * 100).toFixed(1)}%</td>}
+                                {showField('rank2_rate') && <td className="p-3 border-r border-slate-100">{(s.rank2_rate * 100).toFixed(1)}%</td>}
+                                {showField('rank3_rate') && <td className="p-3 border-r border-slate-100">{(s.rank3_rate * 100).toFixed(1)}%</td>}
+                                {showField('rank4_rate') && <td className="p-3 border-r text-red-500 border-slate-100">{(s.rank4_rate * 100).toFixed(1)}%</td>}
+                                {showField('tobi_rate') && <td className="p-3 font-bold border-r text-purple-600 border-slate-100">{(s.tobi_rate * 100).toFixed(1)}%</td>}
+                                {showField('rank12_rate') && <td className={`p-3 font-bold border-r border-slate-100 ${(s.rank12_rate * 100) >= 50 ? 'text-green-600' : ''}`}>{(s.rank12_rate * 100).toFixed(1)}%</td>}
+                                {showField('win_rate') && <td className="p-3 font-bold border-r text-green-700 border-slate-100">
                                     {s.win_rate == null ? '-' : `${(s.win_rate * 100).toFixed(1)}%`}
                                     {s.hands_participated > 0 && <span className="ml-1 text-[10px] text-slate-400">({s.win_count}/{s.hands_participated})</span>}
-                                </td>
-                                <td className={`p-3 font-bold border-r text-emerald-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>
+                                </td>}
+                                {showField('tsumo_rate') && <td className="p-3 font-bold border-r text-emerald-600 border-slate-100">
                                     {s.tsumo_rate == null ? '-' : `${(s.tsumo_rate * 100).toFixed(1)}%`}
-                                </td>
-                                <td className={`p-3 font-bold border-r text-amber-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>
+                                </td>}
+                                {showField('furo_rate') && <td className="p-3 font-bold border-r text-amber-600 border-slate-100">
                                     {s.furo_rate == null ? '-' : `${(s.furo_rate * 100).toFixed(1)}%`}
-                                </td>
-                                <td className={`p-3 font-bold border-r text-amber-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const wins = Number(hh?.riichi_win_count) || 0; if (wins === 0) return '-'; const ipp = Number(hh?.riichi_ippatsu_count) || 0; return `${((ipp/wins)*100).toFixed(1)}%`; })()}</td>
-                                <td className={`p-3 border-r text-green-700 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const v = hh?.avg_win_score; return v == null ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }); })()}</td>
-                                <td className={`p-3 font-bold border-r text-rose-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>
+                                </td>}
+                                {showField('ippatsu_rate') && <td className="p-3 font-bold border-r text-amber-600 border-slate-100">{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const wins = Number(hh?.riichi_win_count) || 0; if (wins === 0) return '-'; const ipp = Number(hh?.riichi_ippatsu_count) || 0; return `${((ipp/wins)*100).toFixed(1)}%`; })()}</td>}
+                                {showField('avg_win_score') && <td className="p-3 border-r text-green-700 border-slate-100">{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const v = hh?.avg_win_score; return v == null ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }); })()}</td>}
+                                {showField('deal_in_rate') && <td className="p-3 font-bold border-r text-rose-600 border-slate-100">
                                     {s.deal_in_rate == null ? '-' : `${(s.deal_in_rate * 100).toFixed(1)}%`}
                                     {s.hands_participated > 0 && <span className="ml-1 text-[10px] text-slate-400">({s.deal_in_count}/{s.hands_participated})</span>}
-                                </td>
-                                <td className={`p-3 border-r text-rose-700 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const v = hh?.avg_deal_in_score; return v == null ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }); })()}</td>
-                                <td className={`p-3 border-r text-blue-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{Number(s.max_score).toLocaleString()}</td>
-                                <td className={`p-3 border-r text-red-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{Number(s.min_score).toLocaleString()}</td>
-                                <td className={`p-3 whitespace-nowrap ${isHighlighted ? 'text-orange-800' : ''}`}>{Number(s.avg_score).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                                </td>}
+                                {showField('avg_deal_in_score') && <td className="p-3 border-r text-rose-700 border-slate-100">{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const v = hh?.avg_deal_in_score; return v == null ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }); })()}</td>}
+                                {showField('max_score') && <td className="p-3 border-r text-blue-600 border-slate-100">{Number(s.max_score).toLocaleString()}</td>}
+                                {showField('min_score') && <td className="p-3 border-r text-red-600 border-slate-100">{Number(s.min_score).toLocaleString()}</td>}
+                                {showField('avg_score') && <td className="p-3 whitespace-nowrap">{Number(s.avg_score).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>}
                             </tr>
                         );
                     })}
@@ -1684,6 +1854,7 @@ export default function App() {
             <main className="flex-1 p-6 md:p-8 lg:p-10 overflow-y-auto">
                 <div className="max-w-6xl mx-auto">
                     {/* Header Controls */}
+                    {activeTab !== 'stats' && (
                     <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                         <div className="w-full md:w-auto">
                             {activeTab === 'records' && (
@@ -1698,7 +1869,7 @@ export default function App() {
                             )}
                         </div>
                         <div className="inline-flex bg-white rounded-lg p-1 shadow-sm border border-slate-200 w-full md:w-auto overflow-x-auto no-scrollbar">
-                            {['all', '2025', '2026'].map(year => (
+                            {YEAR_OPTIONS.map(year => (
                                 <button
                                     key={year}
                                     onClick={() => setGlobalYear(year)}
@@ -1709,6 +1880,7 @@ export default function App() {
                             ))}
                         </div>
                     </div>
+                    )}
 
                     {activeTab === 'dashboard' && renderDashboard()}
                     {activeTab === 'daily' && renderDailyStats()}
