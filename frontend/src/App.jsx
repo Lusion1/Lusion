@@ -436,8 +436,8 @@ export default function App() {
         };
 
         return (
-            <div className="bg-white shadow-lg rounded-xl p-6 overflow-x-auto">
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b pb-3 mb-6">
+            <div className="bg-white shadow-lg rounded-xl overflow-hidden">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b p-6 pb-3">
                     <h2 className="text-xl sm:text-2xl font-bold text-slate-800 gap-2 flex items-center">
                         <span>🏛️</span> 명예의 전당
                     </h2>
@@ -446,7 +446,8 @@ export default function App() {
                     </span>
                 </div>
 
-                <table className="w-full text-center border-collapse text-sm whitespace-nowrap min-w-[800px]">
+                <div className="table-scroll">
+                <table className="data-table w-full text-center text-sm whitespace-nowrap min-w-[800px]">
                     <thead>
                         <tr className="bg-slate-900 text-white border-b-2 border-slate-700 sticky-top">
                             <th className="p-3 border-r border-slate-700 rounded-tl-lg font-bold">타이틀</th>
@@ -483,6 +484,7 @@ export default function App() {
                         })}
                     </tbody>
                 </table>
+                </div>
             </div>
         );
     };
@@ -564,8 +566,8 @@ export default function App() {
             );
         };
         return (
-        <div className="bg-white shadow-lg rounded-xl p-6 overflow-auto max-h-[85vh]">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b pb-4 gap-4">
+        <div className="bg-white shadow-lg rounded-xl overflow-hidden">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b p-6 gap-4">
                 <h2 className="text-2xl font-bold text-slate-800">
                     전체 통계 <span className="text-sm font-normal text-slate-400 ml-2">(헤더를 클릭하면 정렬됩니다)</span>
                     <span className="block text-[11px] font-normal text-slate-500 mt-1">* 표시 컬럼은 &lsquo;한 국씩 입력&rsquo; 으로 저장된 국 기준 (옛 결과만 등록 기록은 제외)</span>
@@ -578,10 +580,11 @@ export default function App() {
                     className="w-full md:w-64 border-2 border-slate-200 p-2 rounded-lg bg-slate-50 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 transition"
                 />
             </div>
-            <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
+            <div className="table-scroll max-h-[70vh] overflow-y-auto">
+            <table className="data-table w-full text-left text-sm whitespace-nowrap">
                 <thead className="sticky top-0 z-30">
                     <tr className="bg-slate-900 text-white text-center cursor-pointer select-none">
-                        <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition sticky-left bg-slate-900 z-[31]" onClick={() => requestSort('player_name')}>이름 {getSortIndicator('player_name')}<InfoIcon k='player_name' /></th>
+                        <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition sticky-corner bg-slate-900" onClick={() => requestSort('player_name')}>이름 {getSortIndicator('player_name')}<InfoIcon k='player_name' /></th>
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('total_matches')}>총 게임수 {getSortIndicator('total_matches')}<InfoIcon k='total_matches' /></th>
                         <th className="p-3 border-r border-slate-700 text-orange-400 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank')}>평균 순위 {getSortIndicator('avg_rank')}<InfoIcon k='avg_rank' /></th>
                         <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('avg_uma')}>평균 우마 {getSortIndicator('avg_uma')}<InfoIcon k='avg_uma' /></th>
@@ -608,8 +611,8 @@ export default function App() {
                     {sortedStats.map((s, idx) => {
                         const isHighlighted = statsSearchQuery.trim() !== '' && s.player_name.toLowerCase().includes(statsSearchQuery.toLowerCase());
                         return (
-                            <tr key={s.player_name} className={`border-b transition text-center ${isHighlighted ? 'bg-orange-100 hover:bg-orange-200 border-orange-300' : 'hover:bg-slate-50 border-slate-100'}`}>
-                                <td className={`p-3 font-bold border-r sticky-left z-20 cursor-pointer hover:underline ${isHighlighted ? 'border-orange-200 text-orange-900 bg-orange-100' : 'border-slate-100 text-slate-800 bg-white'}`} onClick={() => setDetailMember(s.player_name)} title="클릭: 상세 통계"><span className="text-xs text-slate-400 mr-1">{idx + 1}</span> {s.player_name}</td>
+                            <tr key={s.player_name} className={`group border-b transition text-center ${isHighlighted ? 'bg-orange-100 hover:bg-orange-200 border-orange-300' : 'hover:bg-slate-50 border-slate-100'}`}>
+                                <td className={`p-3 font-bold border-r sticky-column cursor-pointer hover:underline ${isHighlighted ? 'border-orange-200 text-orange-900 bg-orange-100' : 'border-slate-100 text-slate-800 bg-white group-hover:bg-slate-50'}`} onClick={() => setDetailMember(s.player_name)} title="클릭: 상세 통계"><span className="text-xs text-slate-400 mr-1">{idx + 1}</span> {s.player_name}</td>
                                 <td className={`p-3 font-medium border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{s.total_matches}</td>
                                 <td className={`p-3 font-black border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${getRankColor(idx)}`}>{Number(s.avg_rank).toFixed(2)}</td>
                                 <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.avg_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.avg_uma).toFixed(2)}</td>
@@ -639,12 +642,13 @@ export default function App() {
                                 <td className={`p-3 border-r text-rose-700 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const v = hh?.avg_deal_in_score; return v == null ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }); })()}</td>
                                 <td className={`p-3 border-r text-blue-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{Number(s.max_score).toLocaleString()}</td>
                                 <td className={`p-3 border-r text-red-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{Number(s.min_score).toLocaleString()}</td>
-                                <td className={`p-3 w-full whitespace-nowrap ${isHighlighted ? 'text-orange-800' : ''}`}>{Number(s.avg_score).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                                <td className={`p-3 whitespace-nowrap ${isHighlighted ? 'text-orange-800' : ''}`}>{Number(s.avg_score).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                             </tr>
                         );
                     })}
                 </tbody>
             </table>
+            </div>
         </div>
         );
     };
@@ -715,9 +719,10 @@ export default function App() {
                         </div>
 
                         {/* Section 4: Match List */}
-                        <div className="bg-white shadow-lg rounded-xl p-6 md:col-span-2 overflow-x-auto">
-                            <h3 className="text-lg font-bold mb-4 text-slate-800 border-b pb-2">경기 목록</h3>
-                            <table className="w-full text-left border-collapse text-sm">
+                        <div className="bg-white shadow-lg rounded-xl md:col-span-2 overflow-hidden">
+                            <h3 className="text-lg font-bold text-slate-800 border-b p-6 pb-4">경기 목록</h3>
+                            <div className="table-scroll">
+                            <table className="data-table w-full text-left text-sm">
                                 <thead>
                                     <tr className="bg-slate-900 text-white font-bold">
                                         <th className="p-3 rounded-tl-lg whitespace-nowrap min-w-[100px]">날짜</th>
@@ -741,6 +746,7 @@ export default function App() {
                                     ))}
                                 </tbody>
                             </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -884,8 +890,8 @@ export default function App() {
         const currentGroups = groupedRecords.slice(startIndex, startIndex + itemsPerPage);
 
         return (
-            <div className="bg-white shadow-lg rounded-xl p-6 overflow-x-auto">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b pb-4 gap-4">
+            <div className="bg-white shadow-lg rounded-xl overflow-hidden">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b p-6 gap-4">
                     <h2 className="text-2xl font-bold text-slate-800">전체 경기 기록 (Round 그룹핑)</h2>
                     <input
                         type="text"
@@ -899,12 +905,13 @@ export default function App() {
                     />
                 </div>
 
-                <div className="flex items-center gap-2 mb-4 bg-orange-50 p-3 rounded-lg border border-orange-100 w-fit">
+                <div className="flex items-center gap-2 m-6 mb-4 bg-orange-50 p-3 rounded-lg border border-orange-100 w-fit">
                     <span className="text-orange-500 font-bold">🔥</span>
                     <span className="text-slate-600 text-xs font-bold">표시는 '만관 이상' 기록을 의미합니다.</span>
                 </div>
 
-                <table className="w-full text-left border-collapse text-sm min-w-[500px]">
+                <div className="table-scroll">
+                <table className="data-table w-full text-left text-sm min-w-[500px]">
                     <thead>
                         <tr className="bg-slate-900 text-white sticky-top">
                             <th className="p-2 text-center border-r border-slate-700 w-16">날짜</th>
@@ -978,11 +985,12 @@ export default function App() {
                         )}
                     </tbody>
                 </table>
+                </div>
 
                 {/* Pagination Controls */}
                 {
                     totalPages > 1 && (
-                        <div className="mt-6 flex justify-center items-center gap-2">
+                        <div className="m-6 flex justify-center items-center gap-2">
                             <button
                                 disabled={currentPage === 1}
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -1152,12 +1160,12 @@ export default function App() {
                     />
                 </div>
 
-                <div className="overflow-x-auto mb-6 border rounded-xl shadow-inner bg-slate-50">
+                <div className="table-scroll mb-6 border rounded-xl shadow-inner bg-slate-50">
 
-                    <table className="w-full text-left border-collapse text-sm min-w-[650px] table-fixed">
+                    <table className="data-table w-full text-left text-sm min-w-[650px] table-fixed">
                         <thead>
                             <tr className="bg-slate-900 text-white text-center text-sm sticky-top">
-                                <th className="p-2 font-black border-r border-slate-700 w-10 sticky-left bg-slate-900 z-[31] whitespace-nowrap">바람</th>
+                                <th className="p-2 font-black border-r border-slate-700 w-10 sticky-corner bg-slate-900 whitespace-nowrap">바람</th>
                                 <th className="p-2 font-black border-r border-slate-700 w-24 whitespace-nowrap">이름</th>
                                 <th className="p-2 font-black border-r border-slate-700 w-28 whitespace-nowrap">최종 점수</th>
                                 <th className="p-2 font-black border-r border-slate-700 text-orange-400 w-10 whitespace-nowrap">순위</th>
@@ -1174,7 +1182,7 @@ export default function App() {
                         <tbody>
                             {newPlayers.map((p, idx) => (
                                 <tr key={idx} className="border-b transition text-center hover:bg-slate-50 border-slate-100">
-                                    <td className="p-2 font-black text-slate-800 bg-slate-100 border-r border-white sticky-left z-20">{p.wind}</td>
+                                    <td className="p-2 font-black text-slate-800 bg-slate-100 border-r border-white sticky-column">{p.wind}</td>
                                     <td className="p-1 border-r border-slate-200" onClick={(e) => {
                                         // Force list to show on some browsers by clearing if empty
                                         const input = e.currentTarget.querySelector('input');
@@ -1499,11 +1507,11 @@ export default function App() {
                             <span className="font-black text-lg">{day} ({new Date(day).toLocaleDateString('ko-KR', { weekday: 'short' })})</span>
                             <span className="text-xs text-slate-400">총 {new Set(grouped[day].map(p => p.player_name)).size}명 참가</span>
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
+                        <div className="table-scroll">
+                            <table className="data-table w-full text-left text-sm whitespace-nowrap">
                                 <thead>
                                     <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
-                                        <th className="p-3 pl-6 sticky-left bg-slate-50 z-20">이름</th>
+                                        <th className="p-3 pl-6 sticky-column bg-slate-50">이름</th>
                                         <th className="p-3 text-center">게임수</th>
                                         <th className="p-3 text-center">총 우마</th>
                                         <th className="p-3 text-center">평균순위</th>
@@ -1517,7 +1525,7 @@ export default function App() {
                                 <tbody>
                                     {grouped[day].map((p, idx) => (
                                         <tr key={p.player_name} className={`border-b border-slate-50 hover:bg-slate-50 transition ${idx === 0 ? 'bg-orange-50/30' : ''}`}>
-                                            <td className={`p-3 pl-6 font-bold sticky-left z-20 ${idx === 0 ? 'bg-orange-50/30 text-orange-700' : 'bg-white text-slate-800'}`}>
+                                            <td className={`p-3 pl-6 font-bold sticky-column ${idx === 0 ? 'bg-orange-50 text-orange-700' : 'bg-white text-slate-800'}`}>
                                                 {idx === 0 && <span className="mr-2">👑</span>}
                                                 {p.player_name}
                                             </td>
