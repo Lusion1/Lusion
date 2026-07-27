@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
+import MailOutlineRoundedIcon from '@mui/icons-material/MailOutlineRounded';
+import EditNoteOutlinedIcon from '@mui/icons-material/EditNoteOutlined';
 
 // 상태 코드 → 한글/색상 매핑
 const STATUS_INFO = {
@@ -273,7 +276,7 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
         <div className="p-4 md:p-6 max-w-4xl mx-auto">
             {/* 헤더 */}
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-slate-800">📢 업데이트 & 문의</h2>
+                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><CampaignOutlinedIcon /> 업데이트 & 문의</h2>
                 <button
                     onClick={openWrite}
                     className="px-4 py-2 bg-orange-500 text-white rounded-lg font-bold hover:bg-orange-600"
@@ -286,8 +289,8 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
             <div className="flex gap-2 mb-3">
                 {[
                     { key: 'all', label: '전체', emoji: '' },
-                    { key: 'update', label: '업데이트', emoji: '📢' },
-                    { key: 'inquiry', label: '문의', emoji: '📮' },
+                    { key: 'update', label: '업데이트', emoji: '' },
+                    { key: 'inquiry', label: '문의', emoji: '' },
                 ].map(c => (
                     <button
                         key={c.key}
@@ -351,8 +354,8 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                                         <span className={'text-[10px] font-bold border rounded px-1.5 py-0.5 ' + sInfo.badge}>{sInfo.label}</span>
-                                        {it.category === 'update' && <span className="text-[10px] font-bold border border-blue-300 bg-blue-100 text-blue-700 rounded px-1.5 py-0.5">📢 업데이트</span>}
-                                        {it.category === 'inquiry' && <span className="text-[10px] font-bold border border-orange-300 bg-orange-100 text-orange-700 rounded px-1.5 py-0.5">📮 문의</span>}
+                                        {it.category === 'update' && <span className="text-[10px] font-bold border border-blue-300 bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 inline-flex items-center gap-1"><CampaignOutlinedIcon sx={{ fontSize: 12 }} />업데이트</span>}
+                                        {it.category === 'inquiry' && <span className="text-[10px] font-bold border border-orange-300 bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 inline-flex items-center gap-1"><MailOutlineRoundedIcon sx={{ fontSize: 12 }} />문의</span>}
                                         {hasReply && <span className="text-[10px] font-bold text-green-700">✓ 답글</span>}
                                         <span className="font-bold text-slate-800 truncate">{it.title}</span>
                                     </div>
@@ -371,7 +374,7 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-stretch md:items-center justify-center p-0 md:p-4">
                     <div className="bg-white w-full max-w-lg max-h-full overflow-y-auto md:rounded-2xl">
                         <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center">
-                            <h3 className="text-lg font-bold text-slate-800">✏ 새 글 작성</h3>
+                            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><EditNoteOutlinedIcon /> 새 글 작성</h3>
                             <button onClick={() => setWriteModal(false)} className="text-slate-400 text-2xl">×</button>
                         </div>
                         <div className="p-4 space-y-3">
@@ -383,12 +386,12 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
                                             type="button"
                                             onClick={() => setWriteForm(f => ({ ...f, category: 'inquiry' }))}
                                             className={'flex-1 py-2 rounded-lg text-sm font-bold border-2 ' + (writeForm.category === 'inquiry' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-slate-600 border-slate-200')}
-                                        >📮 문의</button>
+                                        ><MailOutlineRoundedIcon sx={{ fontSize: 14 }} /> 문의</button>
                                         <button
                                             type="button"
                                             onClick={() => setWriteForm(f => ({ ...f, category: 'update' }))}
                                             className={'flex-1 py-2 rounded-lg text-sm font-bold border-2 ' + (writeForm.category === 'update' ? 'bg-blue-500 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200')}
-                                        >📢 업데이트</button>
+                                        ><CampaignOutlinedIcon sx={{ fontSize: 14 }} /> 업데이트</button>
                                     </div>
                                     <div className="text-[10px] text-slate-400 mt-1">업데이트는 관리자만 작성 가능 (사이트 변경/패치 공지용)</div>
                                 </div>
@@ -448,8 +451,8 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
                             <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center gap-2">
                                 <div className="flex items-center gap-2 min-w-0">
                                     <span className={'text-[10px] font-bold border rounded px-1.5 py-0.5 shrink-0 ' + sInfo.badge}>{sInfo.label}</span>
-                                    {detailItem.category === 'update' && <span className="text-[10px] font-bold border border-blue-300 bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 shrink-0">📢 업데이트</span>}
-                                    {detailItem.category === 'inquiry' && <span className="text-[10px] font-bold border border-orange-300 bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 shrink-0">📮 문의</span>}
+                                    {detailItem.category === 'update' && <span className="text-[10px] font-bold border border-blue-300 bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 shrink-0 inline-flex items-center gap-1"><CampaignOutlinedIcon sx={{ fontSize: 12 }} />업데이트</span>}
+                                    {detailItem.category === 'inquiry' && <span className="text-[10px] font-bold border border-orange-300 bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 shrink-0 inline-flex items-center gap-1"><MailOutlineRoundedIcon sx={{ fontSize: 12 }} />문의</span>}
                                     <h3 className="text-base md:text-lg font-bold text-slate-800 truncate">{detailItem.title}</h3>
                                 </div>
                                 <button onClick={() => setDetailItem(null)} className="text-slate-400 text-2xl shrink-0">×</button>

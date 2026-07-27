@@ -1,4 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import GpsFixedRoundedIcon from '@mui/icons-material/GpsFixedRounded';
+import MahjongIcon from './MahjongIcon.jsx';
+import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import { calcScore, calcRoundResult, calcClassCounts, classLabel } from '../lib/score.js';
 import { YAKU_BY_GROUP, YAKU_GROUPS, YAKU_MAP, resolveYakuConflicts, yakuLabels, isYakuAllowedForWinType, filterYakuByWinType } from '../lib/yaku.js';
 
@@ -180,7 +185,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         const duplicates = new Set(seats.map(s => s.name).filter(Boolean)).size !== seats.filter(s => s.name).length;
         return (
             <div className="p-4 space-y-4">
-                <h2 className="text-xl font-bold text-slate-800">🀄 대국 시작</h2>
+                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><MahjongIcon size={22} /> 대국 시작</h2>
                 <div>
                     <label className="text-sm font-bold text-slate-700">날짜</label>
                     <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full mt-1 p-3 border-2 border-slate-200 rounded-lg bg-slate-50" />
@@ -472,7 +477,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             <div className="p-3 space-y-3">
                 <div className="flex items-center justify-between">
                     <div className="text-lg font-black text-slate-900">
-                        ▶ {meta.hand_wind}{meta.hand_round_num}국
+                        <PlayArrowRoundedIcon className="align-middle" /> {meta.hand_wind}{meta.hand_round_num}국
                         {meta.honba > 0 && <span className="ml-1 text-orange-500">{meta.honba}본장</span>}
                     </div>
                     <div className="text-xs text-slate-500">
@@ -538,7 +543,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                 </div>
 
                 <label className={'flex items-center justify-between gap-2 px-3 py-2 rounded-lg border-2 cursor-pointer ' + (multiRonMode ? 'border-fuchsia-500 bg-fuchsia-50' : 'border-slate-200 bg-white')}>
-                    <span className="text-sm font-bold">{multiRonMode ? '🎯 더블론 모드 ON' : '더블론 모드 OFF'}</span>
+                    <span className="text-sm font-bold inline-flex items-center gap-1">{multiRonMode && <GpsFixedRoundedIcon sx={{ fontSize: 16 }} />}{multiRonMode ? '더블론 모드 ON' : '더블론 모드 OFF'}</span>
                     <input type="checkbox" className="sr-only" checked={multiRonMode} onChange={e => {
                         if (e.target.checked && hands.length > 0) {
                             const last = hands[hands.length - 1];
@@ -593,7 +598,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                     const fmtDelta = (n) => (n > 0 ? '+' : (n < 0 ? '−' : '')) + Math.abs(n).toLocaleString();
                     return (
                         <div className="border border-slate-100 rounded-lg p-2 mt-2">
-                            <div className="text-xs font-bold text-slate-500 mb-1">진행 기록 <span className="font-normal text-slate-400">— ✏ 수정 / 🗑 삭제</span></div>
+                            <div className="text-xs font-bold text-slate-500 mb-1">진행 기록 <span className="font-normal text-slate-400">— 수정 / 삭제</span></div>
                             <div className="text-xs space-y-1 max-h-40 overflow-y-auto">
                                 {hands.map((h, i) => {
                                     const canEdit = h.win_type === 'tsumo' || h.win_type === 'ron' || h.win_type === 'draw';
@@ -654,11 +659,11 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                             </span>
                                             <div className="flex gap-0.5 shrink-0">
                                                 {canEdit ? (
-                                                    <button type="button" onClick={() => openHandForEdit(i)} className="px-1.5 py-0.5 text-fuchsia-600 hover:bg-fuchsia-50 active:bg-fuchsia-100 rounded text-[12px] leading-none" title="수정">✏</button>
+                                                    <button type="button" onClick={() => openHandForEdit(i)} className="px-1.5 py-0.5 text-fuchsia-600 hover:bg-fuchsia-50 active:bg-fuchsia-100 rounded text-[12px] leading-none" title="수정"><EditOutlinedIcon sx={{ fontSize: 14 }} /></button>
                                                 ) : (
                                                     <span className="w-5"></span>
                                                 )}
-                                                <button type="button" onClick={() => deleteHand(i)} className="px-1.5 py-0.5 text-rose-600 hover:bg-rose-50 active:bg-rose-100 rounded text-[12px] leading-none" title="삭제">🗑</button>
+                                                <button type="button" onClick={() => deleteHand(i)} className="px-1.5 py-0.5 text-rose-600 hover:bg-rose-50 active:bg-rose-100 rounded text-[12px] leading-none" title="삭제"><DeleteOutlineRoundedIcon sx={{ fontSize: 14 }} /></button>
                                             </div>
                                         </div>
                                     );
@@ -1019,12 +1024,12 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                                     disabled={lockWinType}
                                                     onClick={() => updateDraft({ win_type: 'tsumo', deal_in_name: '' })}
                                                     className={'py-3 rounded-lg font-bold border-2 ' + (lockWinType ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : (d.win_type === 'tsumo' ? 'bg-green-500 text-white border-green-600' : 'bg-white text-slate-700 border-slate-200'))}
-                                                >🎴 쯔모</button>
+                                                ><MahjongIcon size={17} className="mr-1 align-middle" />쯔모</button>
                                                 <button
                                                     type="button"
                                                     onClick={() => updateDraft({ win_type: 'ron' })}
                                                     className={'py-3 rounded-lg font-bold border-2 ' + (d.win_type === 'ron' ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-slate-700 border-slate-200')}
-                                                >🎯 론</button>
+                                                ><GpsFixedRoundedIcon sx={{ fontSize: 17 }} className="align-middle mr-1" />론</button>
                                             </div>
                                         </div>
                                     );
@@ -1363,7 +1368,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                 {suuchaConfirm && (
                     <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4">
                         <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl">
-                            <h3 className="text-lg font-bold text-slate-800 mb-2">🎴 사가리치 확인</h3>
+                            <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2"><MahjongIcon size={21} /> 사가리치 확인</h3>
                             <div className="text-sm text-slate-600 mb-4">
                                 4명 모두 리치를 선언했습니다.<br/>
                                 <span className="text-amber-700 font-bold">사가리치 (도중유국)</span> 으로 처리하시겠습니까?

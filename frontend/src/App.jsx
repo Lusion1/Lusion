@@ -1,5 +1,30 @@
 import React, { useState, useEffect } from 'react';
+import Autocomplete from '@mui/material/Autocomplete';
+import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import Collapse from '@mui/material/Collapse';
+import Paper from '@mui/material/Paper';
+import TextField from '@mui/material/TextField';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import CompareArrowsOutlinedIcon from '@mui/icons-material/CompareArrowsOutlined';
+import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded';
+import EditNoteOutlinedIcon from '@mui/icons-material/EditNoteOutlined';
+import EmojiEventsOutlinedIcon from '@mui/icons-material/EmojiEventsOutlined';
+import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
+import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
+import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import LocalFireDepartmentOutlinedIcon from '@mui/icons-material/LocalFireDepartmentOutlined';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
+import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
+import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
+import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 import HandRow from './components/HandRow.jsx';
+import MahjongIcon from './components/MahjongIcon.jsx';
 
 import MobileRecorder from './components/MobileRecorder.jsx';
 import MemberDetailModal from './components/MemberDetailModal.jsx';
@@ -59,7 +84,6 @@ export default function App() {
     const [statsSearchQuery, setStatsSearchQuery] = useState('');
     const [selectedStatsPlayers, setSelectedStatsPlayers] = useState([]);
     const [statsPlayerMode, setStatsPlayerMode] = useState('filter');
-    const [isStatsPlayerSuggestionsOpen, setIsStatsPlayerSuggestionsOpen] = useState(false);
     const [isStatsFilterOpen, setIsStatsFilterOpen] = useState(false);
     const [visibleStatsFields, setVisibleStatsFields] = useState(() => STAT_FIELDS.map(field => field.key));
     const [currentPage, setCurrentPage] = useState(1);
@@ -416,9 +440,9 @@ export default function App() {
             { title: '👑 시즌 MVP', item: '총 우마', key: 'total_uma', sort: 'desc', format: v => Number(v).toFixed(1) },
             { title: '👑 천상천하', item: '평균우마', key: 'avg_uma', sort: 'desc', format: v => Number(v).toFixed(2) },
             { title: '👊 파괴신', item: '평균득점', key: 'avg_score', sort: 'desc', format: v => Number(v).toFixed(0) },
-            { title: '🎯 승률왕', item: '1위율', key: 'rank1_rate', sort: 'desc', format: v => `${(v * 100).toFixed(1)}%` },
+            { title: '승률왕', item: '1위율', key: 'rank1_rate', sort: 'desc', format: v => `${(v * 100).toFixed(1)}%` },
             { title: '🚪 뒤에서 1등', item: '4위율', key: 'rank4_rate', sort: 'desc', format: v => `${(v * 100).toFixed(1)}%` },
-            { title: '🛡️ 철벽 수비', item: '4위율(최저)', key: 'rank4_rate', sort: 'asc', format: v => `${(v * 100).toFixed(1)}%` },
+            { title: '철벽 수비', item: '4위율(최저)', key: 'rank4_rate', sort: 'asc', format: v => `${(v * 100).toFixed(1)}%` },
             { title: '🔝 상위권 지박령', item: '연대율', key: 'rank12_rate', sort: 'desc', format: v => `${(v * 100).toFixed(1)}%` },
             { title: '💪 금강불괴', item: '토비방어율', key: 'tobi_rate', sort: 'asc', format: v => (v === 0 || v === '0' || Number(v) === 0 ? '-' : `${(v * 100).toFixed(1)}%`) },
             { title: '🎓 수석 졸업', item: '평균 순위', key: 'avg_rank', sort: 'asc', format: v => Number(v).toFixed(2) },
@@ -468,9 +492,9 @@ export default function App() {
             <div className="bg-white shadow-lg rounded-xl overflow-hidden">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b p-6 pb-3">
                     <h2 className="text-xl sm:text-2xl font-bold text-slate-800 gap-2 flex items-center">
-                        <span>🏛️</span> 명예의 전당
+                        <EmojiEventsOutlinedIcon className="text-orange-500" /> 명예의 전당
                     </h2>
-                    <span className="text-xs sm:text-sm font-bold bg-slate-100 text-slate-500 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full border border-slate-200 self-start sm:self-auto">
+                    <span className="text-xs sm:text-sm font-normal text-slate-500 self-start sm:self-auto">
                         {minMatchesInfo.label} (동점시 판수 우선)
                     </span>
                 </div>
@@ -600,155 +624,164 @@ export default function App() {
                 ? prev.filter(field => field !== key)
                 : [...prev, key]);
         };
-        const addStatsPlayer = (rawName) => {
-            const trimmedName = rawName.trim();
-            const query = trimmedName.toLowerCase();
-            if (!query) return;
-            const exact = stats.find(s => s.player_name.toLowerCase() === query);
-            const partial = stats.find(s => s.player_name.toLowerCase().includes(query));
-            const player = exact || partial;
-            const nameToAdd = player?.player_name || trimmedName;
-            if (!selectedStatsPlayers.some(name => name.toLowerCase() === nameToAdd.toLowerCase())) {
-                setSelectedStatsPlayers(prev => [...prev, nameToAdd]);
-            }
-            setStatsSearchQuery('');
-            setIsStatsPlayerSuggestionsOpen(false);
-        };
-        const statsPlayerSuggestions = stats
-            .filter(s => !selectedStatsPlayers.includes(s.player_name))
-            .filter(s => !statsSearchQuery.trim() || s.player_name.toLowerCase().includes(statsSearchQuery.trim().toLowerCase()))
-            .slice(0, 8);
         const filteredStats = statsPlayerMode === 'filter' && selectedStatsPlayers.length > 0
             ? sortedStats.filter(s => selectedStatsPlayers.includes(s.player_name))
             : sortedStats;
         return (
-        <div className="bg-white shadow-lg rounded-xl overflow-hidden">
-            <div className="border-b p-4">
+        <div className="bg-white shadow-lg rounded-xl overflow-visible">
+            <div className="border-b border-white/60 p-4">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <h2 className="text-2xl font-bold text-slate-800">
-                    전체 통계 <span className="text-sm font-normal text-slate-400 ml-2">(헤더를 클릭하면 정렬됩니다)</span>
-                    <span className="block text-[11px] font-normal text-slate-500 mt-1">* 표시 컬럼은 &lsquo;한 국씩 입력&rsquo; 으로 저장된 국 기준 (옛 결과만 등록 기록은 제외)</span>
-                </h2>
-                <button
-                    type="button"
-                    onClick={() => setIsStatsFilterOpen(open => !open)}
-                    className="w-full md:w-auto px-3 py-2 rounded-lg border border-slate-300 bg-slate-50 text-sm text-slate-700 font-bold hover:bg-slate-100 flex items-center justify-center gap-2"
-                    aria-expanded={isStatsFilterOpen}
-                >
-                    <span>필터</span>
-                    <span className="text-xs text-slate-400">{isStatsFilterOpen ? '▲' : '▼'}</span>
-                </button>
+                    <h2 className="text-2xl font-bold text-slate-800">
+                        전체 통계 <span className="text-sm font-normal text-slate-400 ml-2">(헤더를 클릭하면 정렬됩니다)</span>
+                        <span className="block text-[11px] font-normal text-slate-500 mt-1">* 표시 컬럼은 &lsquo;한 국씩 입력&rsquo; 으로 저장된 국 기준 (옛 결과만 등록 기록은 제외)</span>
+                    </h2>
+                    <Button
+                        variant={isStatsFilterOpen ? 'contained' : 'outlined'}
+                        startIcon={<TuneRoundedIcon fontSize="small" />}
+                        onClick={() => setIsStatsFilterOpen(open => !open)}
+                        aria-expanded={isStatsFilterOpen}
+                        sx={{
+                            minWidth: { xs: '100%', md: 96 },
+                            borderRadius: 2,
+                            fontWeight: 800,
+                            color: isStatsFilterOpen ? '#fff' : '#475569',
+                            bgcolor: isStatsFilterOpen ? 'rgba(249,115,22,.88)' : 'rgba(255,255,255,.42)',
+                            borderColor: 'rgba(255,255,255,.72)',
+                            boxShadow: '0 8px 20px rgba(30,41,59,.1)',
+                            backdropFilter: 'blur(12px)',
+                            '&:hover': { bgcolor: isStatsFilterOpen ? '#ea580c' : 'rgba(255,255,255,.62)', borderColor: 'rgba(255,255,255,.9)' },
+                        }}
+                    >
+                        필터 {isStatsFilterOpen ? '▲' : '▼'}
+                    </Button>
                 </div>
 
-                {isStatsFilterOpen && (
-                    <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <div className="text-xs font-bold text-slate-600 w-14 shrink-0">연도</div>
-                            <div className="inline-flex bg-white rounded-lg p-1 border border-slate-200 max-w-full overflow-x-auto">
-                                {YEAR_OPTIONS.map(year => (
-                                    <button
-                                        key={year}
-                                        type="button"
-                                        onClick={() => setGlobalYear(year)}
-                                        className={`px-3 py-1.5 rounded-md font-bold text-xs whitespace-nowrap transition ${globalYear === year ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
-                                    >
-                                        {year === 'all' ? '전체' : `${year}년`}
-                                    </button>
-                                ))}
-                            </div>
+                <Collapse in={isStatsFilterOpen}>
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            mt: 1.5,
+                            borderRadius: 3,
+                            bgcolor: 'rgba(255,255,255,.34)',
+                            overflow: 'visible',
+                            border: '1px solid rgba(255,255,255,.68)',
+                            boxShadow: '0 16px 36px rgba(30,41,59,.1)',
+                            backdropFilter: 'blur(18px) saturate(140%)',
+                        }}
+                    >
+                        <div className="grid gap-2 p-3 sm:grid-cols-[72px_1fr] sm:items-center">
+                            <div className="text-xs font-bold text-slate-600">연도</div>
+                            <ToggleButtonGroup
+                                exclusive
+                                size="small"
+                                value={globalYear}
+                                onChange={(_, value) => value && setGlobalYear(value)}
+                                sx={{
+                                    width: 'fit-content',
+                                    p: 0.5,
+                                    borderRadius: 2,
+                                    bgcolor: 'rgba(255,255,255,.35)',
+                                    border: '1px solid rgba(255,255,255,.7)',
+                                    '& .MuiToggleButton-root': { px: 2, borderColor: 'rgba(255,255,255,.5)', fontWeight: 800, fontSize: 12, color: '#64748b' },
+                                    '& .Mui-selected': { bgcolor: 'rgba(255,255,255,.8) !important', color: '#c2410c !important' },
+                                }}
+                            >
+                                {YEAR_OPTIONS.map(year => <ToggleButton key={year} value={year}>{year === 'all' ? '전체' : `${year}년`}</ToggleButton>)}
+                            </ToggleButtonGroup>
                         </div>
 
-                        <div className="border-t border-slate-200 pt-3">
-                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                                <label htmlFor="stats-player-filter" className="text-xs font-bold text-slate-600 w-14 shrink-0">플레이어</label>
-                                <div className="inline-flex rounded-md border border-slate-200 bg-white p-0.5">
-                                    <button type="button" onClick={() => setStatsPlayerMode('filter')} className={`px-2.5 py-1 rounded text-[11px] font-bold ${statsPlayerMode === 'filter' ? 'bg-slate-800 text-white' : 'text-slate-500'}`}>해당 플레이어만 보기</button>
-                                    <button type="button" onClick={() => setStatsPlayerMode('highlight')} className={`px-2.5 py-1 rounded text-[11px] font-bold ${statsPlayerMode === 'highlight' ? 'bg-orange-500 text-white' : 'text-slate-500'}`}>해당 플레이어만 강조</button>
-                                </div>
-                            </div>
-                            <div className="relative">
-                                <div className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white p-1.5 focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500">
-                                    <input
-                                        id="stats-player-filter"
-                                        type="text"
-                                        placeholder={selectedStatsPlayers.length ? '플레이어 추가…' : '이름을 입력하거나 목록에서 선택하세요'}
-                                        value={statsSearchQuery}
-                                        onFocus={() => setIsStatsPlayerSuggestionsOpen(true)}
-                                        onChange={(e) => {
-                                            setStatsSearchQuery(e.target.value);
-                                            setIsStatsPlayerSuggestionsOpen(true);
-                                        }}
-                                        onBlur={() => window.setTimeout(() => setIsStatsPlayerSuggestionsOpen(false), 120)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' || e.key === ',') {
-                                                e.preventDefault();
-                                                addStatsPlayer(statsSearchQuery);
-                                            } else if (e.key === 'Backspace' && !statsSearchQuery && selectedStatsPlayers.length) {
-                                                setSelectedStatsPlayers(prev => prev.slice(0, -1));
-                                            }
-                                        }}
-                                        className="min-w-[140px] flex-1 border-0 px-2 py-1 text-sm bg-transparent focus:outline-none"
-                                    />
-                                    {statsSearchQuery && <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => addStatsPlayer(statsSearchQuery)} className="px-2 py-1 rounded bg-slate-800 text-white text-xs font-bold">추가</button>}
-                                </div>
-
-                                {isStatsPlayerSuggestionsOpen && (
-                                    <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl">
-                                        {statsPlayerSuggestions.length > 0 ? statsPlayerSuggestions.map(s => (
-                                            <button
-                                                key={s.player_name}
-                                                type="button"
-                                                onMouseDown={(e) => e.preventDefault()}
-                                                onClick={() => addStatsPlayer(s.player_name)}
-                                                className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-orange-50 hover:text-orange-800"
-                                            >
-                                                {s.player_name}
-                                            </button>
-                                        )) : (
-                                            <div className="px-3 py-2 text-xs text-slate-400">일치하는 플레이어가 없습니다.</div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            {selectedStatsPlayers.length > 0 && (
-                                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                    {selectedStatsPlayers.map(name => (
-                                        <span key={name} className="inline-flex items-center gap-1.5 rounded-md bg-orange-100 text-orange-800 border border-orange-200 px-2 py-1 text-xs font-bold">
-                                            {name}
-                                            <button type="button" onClick={() => setSelectedStatsPlayers(prev => prev.filter(player => player !== name))} className="flex h-4 w-4 items-center justify-center rounded text-orange-500 hover:bg-orange-200 hover:text-orange-900" aria-label={`${name} 제거`}>×</button>
-                                        </span>
-                                    ))}
-                                    <button type="button" onClick={() => setSelectedStatsPlayers([])} className="px-2 py-1 text-[11px] text-slate-400 hover:text-slate-700">모두 제거</button>
-                                </div>
-                            )}
-                        </div>
-
-                        <fieldset className="border-t border-slate-200 pt-3">
-                            <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                                <legend className="text-xs font-bold text-slate-600">표시 필드 <span className="font-normal text-slate-400">{visibleStatsFields.length}/{STAT_FIELDS.length}</span></legend>
-                                <div className="flex gap-2">
-                                    <button type="button" onClick={() => setVisibleStatsFields(STAT_FIELDS.map(field => field.key))} className="text-[11px] font-bold text-slate-600 hover:text-orange-600">전체 선택</button>
-                                    <span className="text-slate-300">·</span>
-                                    <button type="button" onClick={() => setVisibleStatsFields([])} className="text-[11px] font-bold text-slate-600 hover:text-orange-600">전체 해제</button>
-                                </div>
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                                {STAT_FIELDS.map(field => (
-                                    <label key={field.key} className={`inline-flex h-7 items-center rounded-md border px-2.5 text-[11px] font-bold cursor-pointer transition-colors ${showField(field.key) ? 'border-emerald-300 bg-emerald-100 text-emerald-800' : 'border-slate-200 bg-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-200'}`}>
-                                        <input
-                                            type="checkbox"
-                                            checked={showField(field.key)}
-                                            onChange={() => toggleField(field.key)}
-                                            className="sr-only"
+                        <div className="grid gap-2 border-t border-slate-200 p-3 sm:grid-cols-[72px_1fr]">
+                            <label className="pt-2 text-xs font-bold text-slate-600">플레이어</label>
+                            <div className="min-w-0 space-y-3 pt-1">
+                                <ToggleButtonGroup
+                                    exclusive
+                                    size="small"
+                                    value={statsPlayerMode}
+                                    onChange={(_, value) => value && setStatsPlayerMode(value)}
+                                    sx={{
+                                        p: 0.5,
+                                        borderRadius: 2,
+                                        bgcolor: 'rgba(255,255,255,.35)',
+                                        border: '1px solid rgba(255,255,255,.7)',
+                                        '& .MuiToggleButton-root': { px: 1.5, borderColor: 'rgba(255,255,255,.5)', fontWeight: 800, fontSize: 11, color: '#64748b' },
+                                        '& .Mui-selected': { bgcolor: 'rgba(255,255,255,.8) !important', color: '#c2410c !important' },
+                                    }}
+                                >
+                                    <ToggleButton value="filter">해당 플레이어만 보기</ToggleButton>
+                                    <ToggleButton value="highlight">해당 플레이어만 강조</ToggleButton>
+                                </ToggleButtonGroup>
+                                <Autocomplete
+                                    multiple
+                                    freeSolo
+                                    size="small"
+                                    options={stats.map(s => s.player_name)}
+                                    value={selectedStatsPlayers}
+                                    inputValue={statsSearchQuery}
+                                    onInputChange={(_, value) => setStatsSearchQuery(value)}
+                                    onChange={(_, values) => {
+                                        const normalized = [...new Set(values.map(value => String(value).trim()).filter(Boolean))];
+                                        setSelectedStatsPlayers(normalized);
+                                        setStatsSearchQuery('');
+                                    }}
+                                    renderTags={(value, getTagProps) => value.map((name, index) => (
+                                        <Chip
+                                            {...getTagProps({ index })}
+                                            key={name}
+                                            label={name}
+                                            size="small"
+                                            sx={{ borderRadius: 1.5, bgcolor: '#ffedd5', color: '#9a3412', fontWeight: 800 }}
                                         />
-                                        <span>{field.label}</span>
-                                    </label>
-                                ))}
+                                    ))}
+                                    renderInput={(params) => <TextField {...params} placeholder="이름 입력 후 Enter…" />}
+                                    sx={{
+                                        mt: 0.5,
+                                        '& .MuiOutlinedInput-root': {
+                                            borderRadius: 2.5,
+                                            bgcolor: 'rgba(255,255,255,.46)',
+                                            boxShadow: '0 8px 20px rgba(30,41,59,.08)',
+                                            backdropFilter: 'blur(12px)',
+                                            '& fieldset': { borderColor: 'rgba(148,163,184,.45)' },
+                                            '&.Mui-focused fieldset': { borderColor: 'rgba(100,116,139,.7) !important' },
+                                        },
+                                    }}
+                                />
                             </div>
-                        </fieldset>
-                    </div>
-                )}
+                        </div>
+
+                        <div className="grid gap-2 border-t border-slate-200 p-3 sm:grid-cols-[72px_1fr]">
+                            <div className="text-xs font-bold text-slate-600">표시 필드</div>
+                            <div>
+                                <div className="mb-2 flex items-center justify-end gap-2">
+                                    <Button size="small" onClick={() => setVisibleStatsFields(STAT_FIELDS.map(field => field.key))} sx={{ minWidth: 0, fontSize: 11, fontWeight: 800, color: '#475569' }}>전체 선택</Button>
+                                    <Button size="small" onClick={() => setVisibleStatsFields([])} sx={{ minWidth: 0, fontSize: 11, fontWeight: 800, color: '#475569' }}>전체 해제</Button>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {STAT_FIELDS.map(field => (
+                                        <Chip
+                                            key={field.key}
+                                            label={field.label}
+                                            size="small"
+                                            variant="filled"
+                                            onClick={() => toggleField(field.key)}
+                                            sx={{
+                                                height: 30,
+                                                boxSizing: 'border-box',
+                                                borderRadius: 1.5,
+                                                fontSize: 11,
+                                                fontWeight: 800,
+                                                bgcolor: showField(field.key) ? 'rgba(209,250,229,.82)' : 'rgba(255,255,255,.4)',
+                                                color: showField(field.key) ? '#065f46' : '#64748b',
+                                                border: `1px solid ${showField(field.key) ? 'rgba(110,231,183,.85)' : 'rgba(203,213,225,.8)'}`,
+                                                boxShadow: '0 6px 16px rgba(30,41,59,.07)',
+                                                '&:hover': { bgcolor: showField(field.key) ? '#a7f3d0' : '#e2e8f0' },
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </Paper>
+                </Collapse>
             </div>
             <div className="table-scroll max-h-[70vh] overflow-y-auto">
             <table className="data-table w-full text-left text-sm whitespace-nowrap">
@@ -1076,7 +1109,7 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-2 m-6 mb-4 bg-orange-50 p-3 rounded-lg border border-orange-100 w-fit">
-                    <span className="text-orange-500 font-bold">🔥</span>
+                    <LocalFireDepartmentOutlinedIcon className="text-orange-500" fontSize="small" />
                     <span className="text-slate-600 text-xs font-bold">표시는 '만관 이상' 기록을 의미합니다.</span>
                 </div>
 
@@ -1139,7 +1172,7 @@ export default function App() {
                                                 <td className="p-1 text-center">
                                                     {isManganPlus ? (
                                                         <span className="inline-flex items-center justify-center w-6 h-6 bg-orange-100 text-orange-600 rounded-full font-bold shadow-inner text-[10px]">
-                                                            <span>🔥</span>
+                                                            <LocalFireDepartmentOutlinedIcon fontSize="small" />
                                                         </span>
                                                     ) : <span className="text-slate-300">-</span>}
                                                 </td>
@@ -1235,7 +1268,7 @@ export default function App() {
     const renderMemberAdmin = () => (
         <div className="bg-white shadow-lg rounded-xl p-6">
             <div className="flex justify-between items-center mb-6 border-b pb-2">
-                <h2 className="text-2xl font-bold text-slate-800">👥 멤버 관리 (Admin)</h2>
+                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><GroupOutlinedIcon /> 멤버 관리 (Admin)</h2>
                 <button
                     onClick={handleSyncPlayers}
                     className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg font-bold border border-slate-200 transition"
@@ -1311,7 +1344,8 @@ export default function App() {
             <div className="bg-white shadow-lg rounded-xl p-6">
                 <div className="flex justify-between items-center border-b pb-2 mb-6">
                     <h2 className="text-2xl font-bold text-slate-800">
-                        {editingRound ? `✍️ 경기 기록 수정 (R${editingRound})` : '새로운 경기 기록 입력'}
+                        {editingRound && <EditNoteOutlinedIcon className="inline-block mr-1 align-middle" />}
+                        {editingRound ? `경기 기록 수정 (R${editingRound})` : '새로운 경기 기록 입력'}
                     </h2>
                     {editingRound && (
                         <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-bold border border-orange-200 shadow-sm animate-pulse">
@@ -1529,14 +1563,16 @@ export default function App() {
 
                 <div className="flex flex-col md:flex-row justify-between items-center bg-slate-50 p-6 rounded-xl border border-slate-200">
                     <div className="mb-4 md:mb-0">
-                        <span className="text-slate-600 font-bold mr-4">점수 검증 (총합 10만점) :</span>
-                        <span className={`text-2xl font-black ${totalScore === 100000 ? 'text-green-600' : 'text-red-500'}`}>
-                            {totalScore.toLocaleString()}
-                        </span>
-                        {totalScore !== 100000 && (
-                            <span className="ml-3 text-sm text-red-500 font-bold">
-                                {isNaN(totalScore) ? '' : (100000 - totalScore) > 0 ? `(${(100000 - totalScore).toLocaleString()}점 부족)` : `(${(totalScore - 100000).toLocaleString()}점 초과)`}
+                        <div className="flex items-baseline gap-3">
+                            <span className="text-slate-600 font-bold">점수 검증 (총합 10만점) :</span>
+                            <span className={`text-xl font-black ${totalScore === 100000 ? 'text-green-600' : 'text-red-500'}`}>
+                                {totalScore.toLocaleString()}
                             </span>
+                        </div>
+                        {totalScore !== 100000 && (
+                            <div className="mt-1 text-sm text-red-500 font-bold">
+                                {isNaN(totalScore) ? '' : (100000 - totalScore) > 0 ? `(${(100000 - totalScore).toLocaleString()}점 부족)` : `(${(totalScore - 100000).toLocaleString()}점 초과)`}
+                            </div>
                         )}
                     </div>
 
@@ -1556,7 +1592,7 @@ export default function App() {
                                 </div>
                                 <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
                                     💡 이 라운드는 hand 데이터가 저장되어 있어 <b>[수정 완료]</b> 시 점수/우마/등급만 업데이트되고 진행 내역은 그대로 보존됩니다.<br/>
-                                    hand 자체를 수정하려면 <b>🀄 한 국씩 입력 → ✏ 수정</b> 메뉴를 이용하세요.
+                                    hand 자체를 수정하려면 <b>한 국씩 입력 → 수정</b> 메뉴를 이용하세요.
                                 </div>
                                 <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                                     {order.map(hn => {
@@ -1618,7 +1654,7 @@ export default function App() {
                     })()}
                     {editingRound && editingRoundHands.length === 0 && (
                         <div className="mb-6 bg-slate-100 rounded-lg p-3 border border-slate-200 text-sm text-slate-500">
-                            ℹ️ 이 라운드는 '결과만 등록'으로 저장되어 진행 내역(hand 데이터)이 없습니다.
+                            <InfoOutlinedIcon className="mr-1 align-middle" fontSize="small" />이 라운드는 '결과만 등록'으로 저장되어 진행 내역(hand 데이터)이 없습니다.
                         </div>
                     )}
 
@@ -1626,14 +1662,14 @@ export default function App() {
                         <button
                             onClick={handleClearRecord}
                             disabled={isSubmitting}
-                            className={`px-6 py-3 rounded-lg font-bold shadow-md transition-colors border ${isSubmitting ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100 hover:text-slate-800'}`}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold shadow-md transition-colors border ${isSubmitting ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100 hover:text-slate-800'}`}
                         >
                             전체 지우기
                         </button>
                         <button
                             onClick={handleSubmitRecord}
                             disabled={totalScore !== 100000 || isSubmitting}
-                            className={`px-8 py-3 rounded-lg font-bold shadow-md transition-colors border border-transparent flex items-center gap-2 ${totalScore === 100000 && !isSubmitting ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`}
+                            className={`px-5 py-2 rounded-lg text-sm font-bold shadow-md transition-colors border border-transparent flex items-center gap-2 ${totalScore === 100000 && !isSubmitting ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`}
                         >
                             {isSubmitting ? (
                                 <>
@@ -1669,7 +1705,7 @@ export default function App() {
         return (
             <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-slate-800 border-b pb-2 mb-4 italic flex items-center gap-2">
-                    <span>📅</span> 일자별 요약 리포트
+                    <CalendarMonthOutlinedIcon /> 일자별 요약 리포트
                 </h2>
                 {sortedDays.map(day => (
                     <div key={day} className="bg-white shadow-lg rounded-xl overflow-hidden border border-slate-200 transition-all hover:shadow-xl">
@@ -1750,10 +1786,10 @@ export default function App() {
         };
 
         return (
-            <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans text-slate-800">
-                <div className="bg-white p-8 rounded-xl shadow-lg max-w-sm w-full">
-                    <h1 className="text-3xl font-black text-center text-slate-800 mb-6 tracking-tight">
-                        <span className="text-orange-500">🀄</span> 마작 기록
+            <div className="glass-login min-h-screen flex items-center justify-center p-4 font-sans text-slate-800">
+                <div className="glass-panel bg-white p-8 rounded-xl shadow-lg max-w-sm w-full">
+                    <h1 className="text-3xl font-black text-center text-slate-800 mb-6 tracking-tight flex items-center justify-center gap-2">
+                        <MahjongIcon size={32} /> 마작 기록
                     </h1>
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div>
@@ -1777,13 +1813,13 @@ export default function App() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row h-screen">
+        <div className="glass-app min-h-screen flex flex-col md:flex-row h-screen">
             {/* Sidebar Navigation */}
-            <aside className="w-full md:w-64 bg-slate-900 text-white flex flex-col shadow-2xl shrink-0 z-40">
+            <aside className="glass-sidebar relative w-full md:w-64 bg-slate-900 text-white flex flex-col shadow-2xl shrink-0 z-40">
                 <div className="p-4 md:p-6 border-b border-slate-700 flex justify-between items-center md:block">
                     <div>
                         <h1 className="text-xl md:text-2xl font-black tracking-tight flex items-center gap-2">
-                            <span className="text-orange-500">🀄</span>
+                            <MahjongIcon size={24} />
                             <span className="md:hidden lg:inline">Mahjong Tracker</span>
                             <span className="hidden md:inline lg:hidden">MT</span>
                         </h1>
@@ -1794,24 +1830,24 @@ export default function App() {
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
                         className="md:hidden p-2 text-slate-400 hover:text-white"
                     >
-                        {isMenuOpen ? '✕' : '☰'}
+                        {isMenuOpen ? <CloseRoundedIcon /> : <MenuRoundedIcon />}
                     </button>
                 </div>
 
-                <nav className={`${isMenuOpen ? 'flex' : 'hidden'} md:flex flex-col flex-1 p-3 md:p-4 space-y-1 md:space-y-2 overflow-y-auto no-scrollbar`}>
+                <nav className={`${isMenuOpen ? 'flex' : 'hidden'} absolute top-full left-0 right-0 z-50 max-h-[calc(100vh-76px)] flex-col p-3 space-y-1 overflow-y-auto no-scrollbar bg-slate-900 border-t border-white/10 shadow-2xl md:static md:flex md:max-h-none md:flex-1 md:p-4 md:space-y-2 md:bg-transparent md:border-t-0 md:shadow-none`}>
                     {[
                         // 기록 입력: 관리자/참여자 모두 (맨 위)
-                        { id: 'mobile-record', label: '🀄 한 국씩 입력' },
-                        { id: 'new-record', label: '📝 결과만 등록' },
-                        { id: 'daily', label: '🏠 일일 성적' },
-                        { id: 'records', label: '📊 개별 기록' },
-                        { id: 'stats', label: '📈 전체 통계' },
-                        { id: 'dashboard', label: '🏛️ 명예의 전당' },
-                        { id: 'rival', label: '⚔️ 라이벌 분석' },
+                        { id: 'mobile-record', label: '한 국씩 입력', icon: MahjongIcon },
+                        { id: 'new-record', label: '결과만 등록', icon: EditNoteOutlinedIcon },
+                        { id: 'daily', label: '일일 성적', icon: HomeOutlinedIcon },
+                        { id: 'records', label: '개별 기록', icon: TableChartOutlinedIcon },
+                        { id: 'stats', label: '전체 통계', icon: InsightsOutlinedIcon },
+                        { id: 'dashboard', label: '명예의 전당', icon: EmojiEventsOutlinedIcon },
+                        { id: 'rival', label: '라이벌 분석', icon: CompareArrowsOutlinedIcon },
                         ...(userRole === 'admin' ? [
-                            { id: 'member-admin', label: '👥 멤버 관리' }
+                            { id: 'member-admin', label: '멤버 관리', icon: GroupOutlinedIcon }
                         ] : []),
-                        { id: 'suggestions', label: '📢 업데이트 & 문의' },
+                        { id: 'suggestions', label: '업데이트 & 문의', icon: CampaignOutlinedIcon },
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -1819,11 +1855,12 @@ export default function App() {
                                 setActiveTab(tab.id);
                                 setIsMenuOpen(false);
                             }}
-                            className={`w-full text-left px-4 py-3 md:px-5 md:py-4 rounded-xl font-bold transition-all duration-200 ${activeTab === tab.id
+                            className={`w-full text-left px-4 py-3 md:px-5 md:py-4 rounded-xl font-bold transition-all duration-200 flex items-center gap-3 ${activeTab === tab.id
                                 ? 'bg-orange-500 text-white shadow-md shadow-orange-500/30'
                                 : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                                 }`}
                         >
+                            {React.createElement(tab.icon, { className: 'shrink-0', fontSize: 'small' })}
                             <span className="text-sm md:text-base">{tab.label}</span>
                         </button>
                     ))}
@@ -1844,14 +1881,15 @@ export default function App() {
                             }}
                             className="w-full text-left px-4 py-3 md:px-5 md:py-4 rounded-xl font-bold transition-all duration-200 text-red-500 hover:bg-red-500/10 hover:text-red-400 flex items-center gap-2"
                         >
-                            <span className="text-sm md:text-base">👋 로그아웃</span>
+                            <LogoutOutlinedIcon fontSize="small" />
+                            <span className="text-sm md:text-base">로그아웃</span>
                         </button>
                     </div>
                 </nav>
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 p-6 md:p-8 lg:p-10 overflow-y-auto">
+            <main className="glass-main flex-1 p-6 md:p-8 lg:p-10 overflow-y-auto">
                 <div className="max-w-6xl mx-auto">
                     {/* Header Controls */}
                     {activeTab !== 'stats' && (
@@ -1864,7 +1902,7 @@ export default function App() {
                                     }}
                                     className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-bold shadow-md transition-all active:scale-95 text-sm w-full md:w-auto"
                                 >
-                                    <span>📥</span> 엑셀 백업 다운로드
+                                    <DownloadRoundedIcon fontSize="small" /> 엑셀 백업 다운로드
                                 </button>
                             )}
                         </div>

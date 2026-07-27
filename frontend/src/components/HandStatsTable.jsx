@@ -1,4 +1,5 @@
 import React from 'react';
+import BarChartRoundedIcon from '@mui/icons-material/BarChartRounded';
 import { YAKU_MAP } from '../lib/yaku.js';
 
 // handStats : [{player_name, total_hands, win_count, ...}, ...]
@@ -74,7 +75,7 @@ export default function HandStatsTable({ handStats = [], yakuStats = [], allStat
 
     return (
         <div className="bg-white shadow-lg rounded-xl mt-6 overflow-hidden">
-            <h2 className="text-xl font-bold text-slate-800 border-b p-6 pb-4">📊 상세 통계 (Hand 기반)</h2>
+            <h2 className="text-xl font-bold text-slate-800 border-b p-6 pb-4 flex items-center gap-2"><BarChartRoundedIcon /> 상세 통계 (Hand 기반)</h2>
 
             {SECTIONS.map((sec, si) => (
                 <div key={si} className="mb-6 px-6">
