@@ -1,4 +1,5 @@
 import React from 'react';
+import BarChartRoundedIcon from '@mui/icons-material/BarChartRounded';
 import { YAKU_MAP } from '../lib/yaku.js';
 
 // handStats : [{player_name, total_hands, win_count, ...}, ...]
@@ -73,16 +74,17 @@ export default function HandStatsTable({ handStats = [], yakuStats = [], allStat
     }
 
     return (
-        <div className="bg-white shadow-lg rounded-xl p-6 mt-6 overflow-x-auto">
-            <h2 className="text-xl font-bold text-slate-800 border-b pb-2 mb-4">📊 상세 통계 (Hand 기반)</h2>
+        <div className="bg-white shadow-lg rounded-xl mt-6 overflow-hidden">
+            <h2 className="text-xl font-bold text-slate-800 border-b p-6 pb-4 flex items-center gap-2"><BarChartRoundedIcon /> 상세 통계 (Hand 기반)</h2>
 
             {SECTIONS.map((sec, si) => (
-                <div key={si} className="mb-6">
-                    <h3 className="text-sm font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded">{sec.title}</h3>
-                    <table className="w-full text-sm border-collapse mt-1 min-w-[600px]">
+                <div key={si} className="mb-6 px-6">
+                    <h3 className="text-sm font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-t">{sec.title}</h3>
+                    <div className="table-scroll border-x border-b border-slate-100 rounded-b">
+                    <table className="data-table w-full text-sm min-w-[600px]">
                         <thead>
                             <tr className="bg-slate-50 text-slate-600">
-                                <th className="p-2 text-left border-b border-slate-200 w-44">항목</th>
+                                <th className="p-2 text-left border-b border-slate-200 w-44 sticky-column bg-slate-50">항목</th>
                                 {players.map(name => (
                                     <th key={name} className="p-2 text-center border-b border-slate-200 cursor-pointer hover:underline" onClick={() => onMemberClick && onMemberClick(name)} title="클릭: 상세 통계">{name}</th>
                                 ))}
@@ -91,7 +93,7 @@ export default function HandStatsTable({ handStats = [], yakuStats = [], allStat
                         <tbody>
                             {sec.rows.map((row, ri) => (
                                 <tr key={ri} className="border-b border-slate-100 hover:bg-slate-50">
-                                    <td className="p-2 text-slate-700 font-medium">{row.label}</td>
+                                    <td className="p-2 text-slate-700 font-medium sticky-column bg-white">{row.label}</td>
                                     {handStats.map(r => (
                                         <td key={r.player_name} className="p-2 text-center font-mono">{row.get(r)}</td>
                                     ))}
@@ -99,16 +101,18 @@ export default function HandStatsTable({ handStats = [], yakuStats = [], allStat
                             ))}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             ))}
 
             {yakuKeys.length > 0 && (
-                <div className="mb-2">
-                    <h3 className="text-sm font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded">役별 카운트</h3>
-                    <table className="w-full text-sm border-collapse mt-1 min-w-[600px]">
+                <div className="mb-6 px-6">
+                    <h3 className="text-sm font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-t">役별 카운트</h3>
+                    <div className="table-scroll border-x border-b border-slate-100 rounded-b">
+                    <table className="data-table w-full text-sm min-w-[600px]">
                         <thead>
                             <tr className="bg-slate-50 text-slate-600">
-                                <th className="p-2 text-left border-b border-slate-200 w-44">役</th>
+                                <th className="p-2 text-left border-b border-slate-200 w-44 sticky-column bg-slate-50">役</th>
                                 {players.map(name => (
                                     <th key={name} className="p-2 text-center border-b border-slate-200 cursor-pointer hover:underline" onClick={() => onMemberClick && onMemberClick(name)} title="클릭: 상세 통계">{name}</th>
                                 ))}
@@ -120,7 +124,7 @@ export default function HandStatsTable({ handStats = [], yakuStats = [], allStat
                                 const label = yakuDef ? yakuDef.label : yk;
                                 return (
                                     <tr key={yk} className="border-b border-slate-100 hover:bg-slate-50">
-                                        <td className="p-2 text-slate-700 font-medium">{label}</td>
+                                        <td className="p-2 text-slate-700 font-medium sticky-column bg-white">{label}</td>
                                         {players.map(name => (
                                             <td key={name} className="p-2 text-center font-mono">{yakuPivot[yk][name] || '-'}</td>
                                         ))}
@@ -129,6 +133,7 @@ export default function HandStatsTable({ handStats = [], yakuStats = [], allStat
                             })}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             )}
         </div>

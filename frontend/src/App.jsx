@@ -1,5 +1,30 @@
 import React, { useState, useEffect } from 'react';
+import Autocomplete from '@mui/material/Autocomplete';
+import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import Collapse from '@mui/material/Collapse';
+import Paper from '@mui/material/Paper';
+import TextField from '@mui/material/TextField';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import CompareArrowsOutlinedIcon from '@mui/icons-material/CompareArrowsOutlined';
+import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded';
+import EditNoteOutlinedIcon from '@mui/icons-material/EditNoteOutlined';
+import EmojiEventsOutlinedIcon from '@mui/icons-material/EmojiEventsOutlined';
+import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
+import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
+import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import LocalFireDepartmentOutlinedIcon from '@mui/icons-material/LocalFireDepartmentOutlined';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
+import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
+import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
+import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 import HandRow from './components/HandRow.jsx';
+import MahjongIcon from './components/MahjongIcon.jsx';
 
 import MobileRecorder from './components/MobileRecorder.jsx';
 import MemberDetailModal from './components/MemberDetailModal.jsx';
@@ -7,6 +32,30 @@ import SuggestionBoard from './components/SuggestionBoard.jsx';
 import { calcScore, calcRoundResult, calcClassCounts } from './lib/score.js';
 
 const API_BASE = '/api';
+const CURRENT_YEAR = String(new Date().getFullYear());
+const YEAR_OPTIONS = ['all', String(Number(CURRENT_YEAR) - 1), CURRENT_YEAR];
+const STAT_FIELDS = [
+    { key: 'total_matches', label: '총 게임수' },
+    { key: 'avg_rank', label: '평균 순위' },
+    { key: 'avg_uma', label: '평균 우마' },
+    { key: 'total_uma', label: '총 우마' },
+    { key: 'rank1_rate', label: '1위율' },
+    { key: 'rank2_rate', label: '2위율' },
+    { key: 'rank3_rate', label: '3위율' },
+    { key: 'rank4_rate', label: '4위율' },
+    { key: 'tobi_rate', label: '토비율' },
+    { key: 'rank12_rate', label: '연대율' },
+    { key: 'win_rate', label: '화료율*' },
+    { key: 'tsumo_rate', label: '쯔모율*' },
+    { key: 'furo_rate', label: '후로율*' },
+    { key: 'ippatsu_rate', label: '일발률' },
+    { key: 'avg_win_score', label: '평균 화료 금액' },
+    { key: 'deal_in_rate', label: '방총율*' },
+    { key: 'avg_deal_in_score', label: '평균 방총 금액' },
+    { key: 'max_score', label: '최고 점수' },
+    { key: 'min_score', label: '최저 점수' },
+    { key: 'avg_score', label: '평균 점수' },
+];
 
 export default function App() {
     const [authToken, setAuthToken] = useState(localStorage.getItem('mahjong_token') || null);
@@ -33,8 +82,12 @@ export default function App() {
     const [records, setRecords] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [statsSearchQuery, setStatsSearchQuery] = useState('');
+    const [selectedStatsPlayers, setSelectedStatsPlayers] = useState([]);
+    const [statsPlayerMode, setStatsPlayerMode] = useState('filter');
+    const [isStatsFilterOpen, setIsStatsFilterOpen] = useState(false);
+    const [visibleStatsFields, setVisibleStatsFields] = useState(() => STAT_FIELDS.map(field => field.key));
     const [currentPage, setCurrentPage] = useState(1);
-    const [globalYear, setGlobalYear] = useState('2026');
+    const [globalYear, setGlobalYear] = useState(CURRENT_YEAR);
 
     // New Record State
     const getTodayString = () => {
@@ -387,9 +440,9 @@ export default function App() {
             { title: '👑 시즌 MVP', item: '총 우마', key: 'total_uma', sort: 'desc', format: v => Number(v).toFixed(1) },
             { title: '👑 천상천하', item: '평균우마', key: 'avg_uma', sort: 'desc', format: v => Number(v).toFixed(2) },
             { title: '👊 파괴신', item: '평균득점', key: 'avg_score', sort: 'desc', format: v => Number(v).toFixed(0) },
-            { title: '🎯 승률왕', item: '1위율', key: 'rank1_rate', sort: 'desc', format: v => `${(v * 100).toFixed(1)}%` },
+            { title: '승률왕', item: '1위율', key: 'rank1_rate', sort: 'desc', format: v => `${(v * 100).toFixed(1)}%` },
             { title: '🚪 뒤에서 1등', item: '4위율', key: 'rank4_rate', sort: 'desc', format: v => `${(v * 100).toFixed(1)}%` },
-            { title: '🛡️ 철벽 수비', item: '4위율(최저)', key: 'rank4_rate', sort: 'asc', format: v => `${(v * 100).toFixed(1)}%` },
+            { title: '철벽 수비', item: '4위율(최저)', key: 'rank4_rate', sort: 'asc', format: v => `${(v * 100).toFixed(1)}%` },
             { title: '🔝 상위권 지박령', item: '연대율', key: 'rank12_rate', sort: 'desc', format: v => `${(v * 100).toFixed(1)}%` },
             { title: '💪 금강불괴', item: '토비방어율', key: 'tobi_rate', sort: 'asc', format: v => (v === 0 || v === '0' || Number(v) === 0 ? '-' : `${(v * 100).toFixed(1)}%`) },
             { title: '🎓 수석 졸업', item: '평균 순위', key: 'avg_rank', sort: 'asc', format: v => Number(v).toFixed(2) },
@@ -436,21 +489,22 @@ export default function App() {
         };
 
         return (
-            <div className="bg-white shadow-lg rounded-xl p-6 overflow-x-auto">
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b pb-3 mb-6">
+            <div className="bg-white shadow-lg rounded-xl overflow-hidden">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b p-6 pb-3">
                     <h2 className="text-xl sm:text-2xl font-bold text-slate-800 gap-2 flex items-center">
-                        <span>🏛️</span> 명예의 전당
+                        <EmojiEventsOutlinedIcon className="text-orange-500" /> 명예의 전당
                     </h2>
-                    <span className="text-xs sm:text-sm font-bold bg-slate-100 text-slate-500 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full border border-slate-200 self-start sm:self-auto">
+                    <span className="text-xs sm:text-sm font-normal text-slate-500 self-start sm:self-auto">
                         {minMatchesInfo.label} (동점시 판수 우선)
                     </span>
                 </div>
 
-                <table className="w-full text-center border-collapse text-sm whitespace-nowrap min-w-[800px]">
+                <div className="table-scroll">
+                <table className="data-table w-full text-center text-sm whitespace-nowrap min-w-[740px]">
                     <thead>
                         <tr className="bg-slate-900 text-white border-b-2 border-slate-700 sticky-top">
-                            <th className="p-3 border-r border-slate-700 rounded-tl-lg font-bold">타이틀</th>
-                            <th className="p-3 border-r border-slate-700 font-bold">항목</th>
+                            <th className="sticky-corner bg-slate-900 w-[124px] min-w-[124px] max-w-[124px] px-3 py-2.5 border-r border-slate-700 font-bold text-left">타이틀</th>
+                            <th className="w-[112px] min-w-[112px] max-w-[112px] px-3 py-2.5 border-r border-slate-700 font-bold">항목</th>
                             <th colSpan="2" className="p-3 border-r border-slate-700 font-bold text-yellow-500">🥇 1위</th>
                             <th colSpan="2" className="p-3 border-r border-slate-700 font-bold text-slate-400">🥈 2위</th>
                             <th colSpan="2" className="p-3 rounded-tr-lg font-bold text-orange-400">🥉 3위</th>
@@ -461,8 +515,8 @@ export default function App() {
                             const top3 = getSortedForCategory(cat.key, cat.sort);
                             return (
                                 <tr key={idx} className="border-b transition hover:bg-slate-50 border-slate-100">
-                                    <td className="p-3 font-bold text-slate-800 border-r border-slate-100 bg-slate-50 text-left">{cat.title}</td>
-                                    <td className="p-3 font-medium text-slate-600 border-r border-slate-100">{cat.item}</td>
+                                    <td className="sticky-column w-[124px] min-w-[124px] max-w-[124px] px-3 py-2.5 font-bold text-slate-800 border-r border-slate-200 bg-slate-50 text-left whitespace-normal leading-snug">{cat.title}</td>
+                                    <td className="w-[112px] min-w-[112px] max-w-[112px] px-3 py-2.5 font-medium text-slate-600 border-r border-slate-100 whitespace-nowrap">{cat.item}</td>
 
                                     <td className="p-3 font-black text-slate-800 border-r border-slate-100">{top3[0]?.player_name || '-'}</td>
                                     <td className={`p-3 font-bold border-r border-slate-100 ${top3[0] ? 'text-orange-600' : 'text-slate-400'}`}>
@@ -483,6 +537,7 @@ export default function App() {
                         })}
                     </tbody>
                 </table>
+                </div>
             </div>
         );
     };
@@ -563,88 +618,240 @@ export default function App() {
                 >?</span>
             );
         };
+        const showField = (key) => visibleStatsFields.includes(key);
+        const toggleField = (key) => {
+            setVisibleStatsFields(prev => prev.includes(key)
+                ? prev.filter(field => field !== key)
+                : [...prev, key]);
+        };
+        const filteredStats = statsPlayerMode === 'filter' && selectedStatsPlayers.length > 0
+            ? sortedStats.filter(s => selectedStatsPlayers.includes(s.player_name))
+            : sortedStats;
         return (
-        <div className="bg-white shadow-lg rounded-xl p-6 overflow-auto max-h-[85vh]">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b pb-4 gap-4">
-                <h2 className="text-2xl font-bold text-slate-800">
-                    전체 통계 <span className="text-sm font-normal text-slate-400 ml-2">(헤더를 클릭하면 정렬됩니다)</span>
-                    <span className="block text-[11px] font-normal text-slate-500 mt-1">* 표시 컬럼은 &lsquo;한 국씩 입력&rsquo; 으로 저장된 국 기준 (옛 결과만 등록 기록은 제외)</span>
-                </h2>
-                <input
-                    type="text"
-                    placeholder="플레이어 이름 검색 (강조)..."
-                    value={statsSearchQuery}
-                    onChange={(e) => setStatsSearchQuery(e.target.value)}
-                    className="w-full md:w-64 border-2 border-slate-200 p-2 rounded-lg bg-slate-50 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 transition"
-                />
+        <div className="bg-white shadow-lg rounded-xl overflow-visible">
+            <div className="border-b border-white/60 p-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <h2 className="text-2xl font-bold text-slate-800">
+                        전체 통계 <span className="text-sm font-normal text-slate-400 ml-2">(헤더를 클릭하면 정렬됩니다)</span>
+                        <span className="block text-[11px] font-normal text-slate-500 mt-1">* 표시 컬럼은 &lsquo;한 국씩 입력&rsquo; 으로 저장된 국 기준 (옛 결과만 등록 기록은 제외)</span>
+                    </h2>
+                    <Button
+                        variant={isStatsFilterOpen ? 'contained' : 'outlined'}
+                        startIcon={<TuneRoundedIcon fontSize="small" />}
+                        onClick={() => setIsStatsFilterOpen(open => !open)}
+                        aria-expanded={isStatsFilterOpen}
+                        sx={{
+                            minWidth: { xs: '100%', md: 96 },
+                            borderRadius: 2,
+                            fontWeight: 800,
+                            color: isStatsFilterOpen ? '#fff' : '#475569',
+                            bgcolor: isStatsFilterOpen ? 'rgba(249,115,22,.88)' : 'rgba(255,255,255,.42)',
+                            borderColor: 'rgba(255,255,255,.72)',
+                            boxShadow: '0 8px 20px rgba(30,41,59,.1)',
+                            backdropFilter: 'blur(12px)',
+                            '&:hover': { bgcolor: isStatsFilterOpen ? '#ea580c' : 'rgba(255,255,255,.62)', borderColor: 'rgba(255,255,255,.9)' },
+                        }}
+                    >
+                        필터 {isStatsFilterOpen ? '▲' : '▼'}
+                    </Button>
+                </div>
+
+                <Collapse in={isStatsFilterOpen}>
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            mt: 1.5,
+                            borderRadius: 3,
+                            bgcolor: 'rgba(255,255,255,.34)',
+                            overflow: 'visible',
+                            border: '1px solid rgba(255,255,255,.68)',
+                            boxShadow: '0 16px 36px rgba(30,41,59,.1)',
+                            backdropFilter: 'blur(18px) saturate(140%)',
+                        }}
+                    >
+                        <div className="grid gap-2 p-3 sm:grid-cols-[72px_1fr] sm:items-center">
+                            <div className="text-xs font-bold text-slate-600">연도</div>
+                            <ToggleButtonGroup
+                                exclusive
+                                size="small"
+                                value={globalYear}
+                                onChange={(_, value) => value && setGlobalYear(value)}
+                                sx={{
+                                    width: 'fit-content',
+                                    p: 0.5,
+                                    borderRadius: 2,
+                                    bgcolor: 'rgba(255,255,255,.35)',
+                                    border: '1px solid rgba(255,255,255,.7)',
+                                    '& .MuiToggleButton-root': { px: 2, borderColor: 'rgba(255,255,255,.5)', fontWeight: 800, fontSize: 12, color: '#64748b' },
+                                    '& .Mui-selected': { bgcolor: 'rgba(255,255,255,.8) !important', color: '#c2410c !important' },
+                                }}
+                            >
+                                {YEAR_OPTIONS.map(year => <ToggleButton key={year} value={year}>{year === 'all' ? '전체' : `${year}년`}</ToggleButton>)}
+                            </ToggleButtonGroup>
+                        </div>
+
+                        <div className="grid gap-2 border-t border-slate-200 p-3 sm:grid-cols-[72px_1fr]">
+                            <label className="pt-2 text-xs font-bold text-slate-600">플레이어</label>
+                            <div className="min-w-0 space-y-3 pt-1">
+                                <ToggleButtonGroup
+                                    exclusive
+                                    size="small"
+                                    value={statsPlayerMode}
+                                    onChange={(_, value) => value && setStatsPlayerMode(value)}
+                                    sx={{
+                                        p: 0.5,
+                                        borderRadius: 2,
+                                        bgcolor: 'rgba(255,255,255,.35)',
+                                        border: '1px solid rgba(255,255,255,.7)',
+                                        '& .MuiToggleButton-root': { px: 1.5, borderColor: 'rgba(255,255,255,.5)', fontWeight: 800, fontSize: 11, color: '#64748b' },
+                                        '& .Mui-selected': { bgcolor: 'rgba(255,255,255,.8) !important', color: '#c2410c !important' },
+                                    }}
+                                >
+                                    <ToggleButton value="filter">해당 플레이어만 보기</ToggleButton>
+                                    <ToggleButton value="highlight">해당 플레이어만 강조</ToggleButton>
+                                </ToggleButtonGroup>
+                                <Autocomplete
+                                    multiple
+                                    freeSolo
+                                    size="small"
+                                    options={stats.map(s => s.player_name)}
+                                    value={selectedStatsPlayers}
+                                    inputValue={statsSearchQuery}
+                                    onInputChange={(_, value) => setStatsSearchQuery(value)}
+                                    onChange={(_, values) => {
+                                        const normalized = [...new Set(values.map(value => String(value).trim()).filter(Boolean))];
+                                        setSelectedStatsPlayers(normalized);
+                                        setStatsSearchQuery('');
+                                    }}
+                                    renderTags={(value, getTagProps) => value.map((name, index) => (
+                                        <Chip
+                                            {...getTagProps({ index })}
+                                            key={name}
+                                            label={name}
+                                            size="small"
+                                            sx={{ borderRadius: 1.5, bgcolor: '#ffedd5', color: '#9a3412', fontWeight: 800 }}
+                                        />
+                                    ))}
+                                    renderInput={(params) => <TextField {...params} placeholder="이름 입력 후 Enter…" />}
+                                    sx={{
+                                        mt: 0.5,
+                                        '& .MuiOutlinedInput-root': {
+                                            borderRadius: 2.5,
+                                            bgcolor: 'rgba(255,255,255,.46)',
+                                            boxShadow: '0 8px 20px rgba(30,41,59,.08)',
+                                            backdropFilter: 'blur(12px)',
+                                            '& fieldset': { borderColor: 'rgba(148,163,184,.45)' },
+                                            '&.Mui-focused fieldset': { borderColor: 'rgba(100,116,139,.7) !important' },
+                                        },
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid gap-2 border-t border-slate-200 p-3 sm:grid-cols-[72px_1fr]">
+                            <div className="text-xs font-bold text-slate-600">표시 필드</div>
+                            <div>
+                                <div className="mb-2 flex items-center justify-end gap-2">
+                                    <Button size="small" onClick={() => setVisibleStatsFields(STAT_FIELDS.map(field => field.key))} sx={{ minWidth: 0, fontSize: 11, fontWeight: 800, color: '#475569' }}>전체 선택</Button>
+                                    <Button size="small" onClick={() => setVisibleStatsFields([])} sx={{ minWidth: 0, fontSize: 11, fontWeight: 800, color: '#475569' }}>전체 해제</Button>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {STAT_FIELDS.map(field => (
+                                        <Chip
+                                            key={field.key}
+                                            label={field.label}
+                                            size="small"
+                                            variant="filled"
+                                            onClick={() => toggleField(field.key)}
+                                            sx={{
+                                                height: 30,
+                                                boxSizing: 'border-box',
+                                                borderRadius: 1.5,
+                                                fontSize: 11,
+                                                fontWeight: 800,
+                                                bgcolor: showField(field.key) ? 'rgba(209,250,229,.82)' : 'rgba(255,255,255,.4)',
+                                                color: showField(field.key) ? '#065f46' : '#64748b',
+                                                border: `1px solid ${showField(field.key) ? 'rgba(110,231,183,.85)' : 'rgba(203,213,225,.8)'}`,
+                                                boxShadow: '0 6px 16px rgba(30,41,59,.07)',
+                                                '&:hover': { bgcolor: showField(field.key) ? '#a7f3d0' : '#e2e8f0' },
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </Paper>
+                </Collapse>
             </div>
-            <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
+            <div className="table-scroll max-h-[70vh] overflow-y-auto">
+            <table className="data-table w-full text-left text-sm whitespace-nowrap">
                 <thead className="sticky top-0 z-30">
                     <tr className="bg-slate-900 text-white text-center cursor-pointer select-none">
-                        <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition sticky-left bg-slate-900 z-[31]" onClick={() => requestSort('player_name')}>이름 {getSortIndicator('player_name')}<InfoIcon k='player_name' /></th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('total_matches')}>총 게임수 {getSortIndicator('total_matches')}<InfoIcon k='total_matches' /></th>
-                        <th className="p-3 border-r border-slate-700 text-orange-400 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank')}>평균 순위 {getSortIndicator('avg_rank')}<InfoIcon k='avg_rank' /></th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('avg_uma')}>평균 우마 {getSortIndicator('avg_uma')}<InfoIcon k='avg_uma' /></th>
-                        <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition" onClick={() => requestSort('total_uma')}>총 우마 {getSortIndicator('total_uma')}<InfoIcon k='total_uma' /></th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank1_rate')}>1위율 {getSortIndicator('rank1_rate')}<InfoIcon k='rank1_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank2_rate')}>2위율 {getSortIndicator('rank2_rate')}<InfoIcon k='rank2_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank3_rate')}>3위율 {getSortIndicator('rank3_rate')}<InfoIcon k='rank3_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 text-red-300 hover:bg-slate-800 transition" onClick={() => requestSort('rank4_rate')}>4위율 {getSortIndicator('rank4_rate')}<InfoIcon k='rank4_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 text-purple-300 hover:bg-slate-800 transition" onClick={() => requestSort('tobi_rate')}>토비율 {getSortIndicator('tobi_rate')}<InfoIcon k='tobi_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank12_rate')}>연대율 {getSortIndicator('rank12_rate')}<InfoIcon k='rank12_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('win_rate')}>화료율*  {getSortIndicator('win_rate')}<InfoIcon k='win_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 text-emerald-300 hover:bg-slate-800 transition" onClick={() => requestSort('tsumo_rate')}>쯔모율*  {getSortIndicator('tsumo_rate')}<InfoIcon k='tsumo_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 text-amber-300 hover:bg-slate-800 transition" onClick={() => requestSort('furo_rate')}>후로율*  {getSortIndicator('furo_rate')}<InfoIcon k='furo_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 text-amber-300 hover:bg-slate-800 transition" onClick={() => requestSort('ippatsu_rate')}>일발률 {getSortIndicator('ippatsu_rate')}<InfoIcon k='ippatsu_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_win_score')}>평균 화료 금액 {getSortIndicator('avg_win_score')}<InfoIcon k='avg_win_score' /></th>
-                        <th className="p-3 border-r border-slate-700 text-rose-300 hover:bg-slate-800 transition" onClick={() => requestSort('deal_in_rate')}>방총율*  {getSortIndicator('deal_in_rate')}<InfoIcon k='deal_in_rate' /></th>
-                        <th className="p-3 border-r border-slate-700 text-rose-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_deal_in_score')}>평균 방총 금액 {getSortIndicator('avg_deal_in_score')}<InfoIcon k='avg_deal_in_score' /></th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('max_score')}>최고 점수 {getSortIndicator('max_score')}<InfoIcon k='max_score' /></th>
-                        <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('min_score')}>최저 점수 {getSortIndicator('min_score')}<InfoIcon k='min_score' /></th>
-                        <th className="p-3 rounded-tr-lg hover:bg-slate-800 transition" onClick={() => requestSort('avg_score')}>평균 점수 {getSortIndicator('avg_score')}<InfoIcon k='avg_score' /></th>
+                        <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition sticky-corner bg-slate-900" onClick={() => requestSort('player_name')}>이름 {getSortIndicator('player_name')}<InfoIcon k='player_name' /></th>
+                        {showField('total_matches') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('total_matches')}>총 게임수 {getSortIndicator('total_matches')}<InfoIcon k='total_matches' /></th>}
+                        {showField('avg_rank') && <th className="p-3 border-r border-slate-700 text-orange-400 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank')}>평균 순위 {getSortIndicator('avg_rank')}<InfoIcon k='avg_rank' /></th>}
+                        {showField('avg_uma') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('avg_uma')}>평균 우마 {getSortIndicator('avg_uma')}<InfoIcon k='avg_uma' /></th>}
+                        {showField('total_uma') && <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition" onClick={() => requestSort('total_uma')}>총 우마 {getSortIndicator('total_uma')}<InfoIcon k='total_uma' /></th>}
+                        {showField('rank1_rate') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank1_rate')}>1위율 {getSortIndicator('rank1_rate')}<InfoIcon k='rank1_rate' /></th>}
+                        {showField('rank2_rate') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank2_rate')}>2위율 {getSortIndicator('rank2_rate')}<InfoIcon k='rank2_rate' /></th>}
+                        {showField('rank3_rate') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank3_rate')}>3위율 {getSortIndicator('rank3_rate')}<InfoIcon k='rank3_rate' /></th>}
+                        {showField('rank4_rate') && <th className="p-3 border-r border-slate-700 text-red-300 hover:bg-slate-800 transition" onClick={() => requestSort('rank4_rate')}>4위율 {getSortIndicator('rank4_rate')}<InfoIcon k='rank4_rate' /></th>}
+                        {showField('tobi_rate') && <th className="p-3 border-r border-slate-700 text-purple-300 hover:bg-slate-800 transition" onClick={() => requestSort('tobi_rate')}>토비율 {getSortIndicator('tobi_rate')}<InfoIcon k='tobi_rate' /></th>}
+                        {showField('rank12_rate') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank12_rate')}>연대율 {getSortIndicator('rank12_rate')}<InfoIcon k='rank12_rate' /></th>}
+                        {showField('win_rate') && <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('win_rate')}>화료율* {getSortIndicator('win_rate')}<InfoIcon k='win_rate' /></th>}
+                        {showField('tsumo_rate') && <th className="p-3 border-r border-slate-700 text-emerald-300 hover:bg-slate-800 transition" onClick={() => requestSort('tsumo_rate')}>쯔모율* {getSortIndicator('tsumo_rate')}<InfoIcon k='tsumo_rate' /></th>}
+                        {showField('furo_rate') && <th className="p-3 border-r border-slate-700 text-amber-300 hover:bg-slate-800 transition" onClick={() => requestSort('furo_rate')}>후로율* {getSortIndicator('furo_rate')}<InfoIcon k='furo_rate' /></th>}
+                        {showField('ippatsu_rate') && <th className="p-3 border-r border-slate-700 text-amber-300 hover:bg-slate-800 transition" onClick={() => requestSort('ippatsu_rate')}>일발률 {getSortIndicator('ippatsu_rate')}<InfoIcon k='ippatsu_rate' /></th>}
+                        {showField('avg_win_score') && <th className="p-3 border-r border-slate-700 text-green-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_win_score')}>평균 화료 금액 {getSortIndicator('avg_win_score')}<InfoIcon k='avg_win_score' /></th>}
+                        {showField('deal_in_rate') && <th className="p-3 border-r border-slate-700 text-rose-300 hover:bg-slate-800 transition" onClick={() => requestSort('deal_in_rate')}>방총율* {getSortIndicator('deal_in_rate')}<InfoIcon k='deal_in_rate' /></th>}
+                        {showField('avg_deal_in_score') && <th className="p-3 border-r border-slate-700 text-rose-300 hover:bg-slate-800 transition" onClick={() => requestSort('avg_deal_in_score')}>평균 방총 금액 {getSortIndicator('avg_deal_in_score')}<InfoIcon k='avg_deal_in_score' /></th>}
+                        {showField('max_score') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('max_score')}>최고 점수 {getSortIndicator('max_score')}<InfoIcon k='max_score' /></th>}
+                        {showField('min_score') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('min_score')}>최저 점수 {getSortIndicator('min_score')}<InfoIcon k='min_score' /></th>}
+                        {showField('avg_score') && <th className="p-3 rounded-tr-lg hover:bg-slate-800 transition" onClick={() => requestSort('avg_score')}>평균 점수 {getSortIndicator('avg_score')}<InfoIcon k='avg_score' /></th>}
                     </tr>
                 </thead>
                 <tbody>
-                    {sortedStats.map((s, idx) => {
-                        const isHighlighted = statsSearchQuery.trim() !== '' && s.player_name.toLowerCase().includes(statsSearchQuery.toLowerCase());
+                    {filteredStats.map((s, idx) => {
+                        const isHighlighted = statsPlayerMode === 'highlight' && selectedStatsPlayers.includes(s.player_name);
                         return (
-                            <tr key={s.player_name} className={`border-b transition text-center ${isHighlighted ? 'bg-orange-100 hover:bg-orange-200 border-orange-300' : 'hover:bg-slate-50 border-slate-100'}`}>
-                                <td className={`p-3 font-bold border-r sticky-left z-20 cursor-pointer hover:underline ${isHighlighted ? 'border-orange-200 text-orange-900 bg-orange-100' : 'border-slate-100 text-slate-800 bg-white'}`} onClick={() => setDetailMember(s.player_name)} title="클릭: 상세 통계"><span className="text-xs text-slate-400 mr-1">{idx + 1}</span> {s.player_name}</td>
-                                <td className={`p-3 font-medium border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{s.total_matches}</td>
-                                <td className={`p-3 font-black border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${getRankColor(idx)}`}>{Number(s.avg_rank).toFixed(2)}</td>
-                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.avg_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.avg_uma).toFixed(2)}</td>
-                                <td className={`p-3 font-black border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${s.total_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.total_uma).toFixed(1)}</td>
-                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{(s.rank1_rate * 100).toFixed(1)}%</td>
-                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{(s.rank2_rate * 100).toFixed(1)}%</td>
-                                <td className={`p-3 border-r ${isHighlighted ? 'border-orange-200 text-orange-800' : 'border-slate-100'}`}>{(s.rank3_rate * 100).toFixed(1)}%</td>
-                                <td className={`p-3 border-r text-red-500 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(s.rank4_rate * 100).toFixed(1)}%</td>
-                                <td className={`p-3 font-bold border-r text-purple-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(s.tobi_rate * 100).toFixed(1)}%</td>
-                                <td className={`p-3 font-bold border-r ${isHighlighted ? 'border-orange-200' : 'border-slate-100'} ${(s.rank12_rate * 100) >= 50 ? 'text-green-600' : ''}`}>{(s.rank12_rate * 100).toFixed(1)}%</td>
-                                <td className={`p-3 font-bold border-r text-green-700 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>
+                            <tr key={s.player_name} className={`group border-b transition text-center ${isHighlighted ? 'bg-orange-100 border-orange-200 hover:bg-orange-200' : 'hover:bg-slate-50 border-slate-100'}`}>
+                                <td className={`p-3 font-bold border-r sticky-column cursor-pointer hover:underline ${isHighlighted ? 'border-orange-200 text-orange-900 bg-orange-100 group-hover:bg-orange-200' : 'border-slate-100 text-slate-800 bg-white group-hover:bg-slate-50'}`} onClick={() => setDetailMember(s.player_name)} title="클릭: 상세 통계"><span className="text-xs text-slate-400 mr-1">{idx + 1}</span> {s.player_name}</td>
+                                {showField('total_matches') && <td className="p-3 font-medium border-r border-slate-100">{s.total_matches}</td>}
+                                {showField('avg_rank') && <td className={`p-3 font-black border-r border-slate-100 ${getRankColor(idx)}`}>{Number(s.avg_rank).toFixed(2)}</td>}
+                                {showField('avg_uma') && <td className={`p-3 border-r border-slate-100 ${s.avg_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.avg_uma).toFixed(2)}</td>}
+                                {showField('total_uma') && <td className={`p-3 font-black border-r border-slate-100 ${s.total_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.total_uma).toFixed(1)}</td>}
+                                {showField('rank1_rate') && <td className="p-3 border-r border-slate-100">{(s.rank1_rate * 100).toFixed(1)}%</td>}
+                                {showField('rank2_rate') && <td className="p-3 border-r border-slate-100">{(s.rank2_rate * 100).toFixed(1)}%</td>}
+                                {showField('rank3_rate') && <td className="p-3 border-r border-slate-100">{(s.rank3_rate * 100).toFixed(1)}%</td>}
+                                {showField('rank4_rate') && <td className="p-3 border-r text-red-500 border-slate-100">{(s.rank4_rate * 100).toFixed(1)}%</td>}
+                                {showField('tobi_rate') && <td className="p-3 font-bold border-r text-purple-600 border-slate-100">{(s.tobi_rate * 100).toFixed(1)}%</td>}
+                                {showField('rank12_rate') && <td className={`p-3 font-bold border-r border-slate-100 ${(s.rank12_rate * 100) >= 50 ? 'text-green-600' : ''}`}>{(s.rank12_rate * 100).toFixed(1)}%</td>}
+                                {showField('win_rate') && <td className="p-3 font-bold border-r text-green-700 border-slate-100">
                                     {s.win_rate == null ? '-' : `${(s.win_rate * 100).toFixed(1)}%`}
                                     {s.hands_participated > 0 && <span className="ml-1 text-[10px] text-slate-400">({s.win_count}/{s.hands_participated})</span>}
-                                </td>
-                                <td className={`p-3 font-bold border-r text-emerald-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>
+                                </td>}
+                                {showField('tsumo_rate') && <td className="p-3 font-bold border-r text-emerald-600 border-slate-100">
                                     {s.tsumo_rate == null ? '-' : `${(s.tsumo_rate * 100).toFixed(1)}%`}
-                                </td>
-                                <td className={`p-3 font-bold border-r text-amber-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>
+                                </td>}
+                                {showField('furo_rate') && <td className="p-3 font-bold border-r text-amber-600 border-slate-100">
                                     {s.furo_rate == null ? '-' : `${(s.furo_rate * 100).toFixed(1)}%`}
-                                </td>
-                                <td className={`p-3 font-bold border-r text-amber-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const wins = Number(hh?.riichi_win_count) || 0; if (wins === 0) return '-'; const ipp = Number(hh?.riichi_ippatsu_count) || 0; return `${((ipp/wins)*100).toFixed(1)}%`; })()}</td>
-                                <td className={`p-3 border-r text-green-700 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const v = hh?.avg_win_score; return v == null ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }); })()}</td>
-                                <td className={`p-3 font-bold border-r text-rose-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>
+                                </td>}
+                                {showField('ippatsu_rate') && <td className="p-3 font-bold border-r text-amber-600 border-slate-100">{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const wins = Number(hh?.riichi_win_count) || 0; if (wins === 0) return '-'; const ipp = Number(hh?.riichi_ippatsu_count) || 0; return `${((ipp/wins)*100).toFixed(1)}%`; })()}</td>}
+                                {showField('avg_win_score') && <td className="p-3 border-r text-green-700 border-slate-100">{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const v = hh?.avg_win_score; return v == null ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }); })()}</td>}
+                                {showField('deal_in_rate') && <td className="p-3 font-bold border-r text-rose-600 border-slate-100">
                                     {s.deal_in_rate == null ? '-' : `${(s.deal_in_rate * 100).toFixed(1)}%`}
                                     {s.hands_participated > 0 && <span className="ml-1 text-[10px] text-slate-400">({s.deal_in_count}/{s.hands_participated})</span>}
-                                </td>
-                                <td className={`p-3 border-r text-rose-700 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const v = hh?.avg_deal_in_score; return v == null ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }); })()}</td>
-                                <td className={`p-3 border-r text-blue-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{Number(s.max_score).toLocaleString()}</td>
-                                <td className={`p-3 border-r text-red-600 ${isHighlighted ? 'border-orange-200' : 'border-slate-100'}`}>{Number(s.min_score).toLocaleString()}</td>
-                                <td className={`p-3 w-full whitespace-nowrap ${isHighlighted ? 'text-orange-800' : ''}`}>{Number(s.avg_score).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                                </td>}
+                                {showField('avg_deal_in_score') && <td className="p-3 border-r text-rose-700 border-slate-100">{(() => { const hh = handStats.find(x => x.player_name === s.player_name); const v = hh?.avg_deal_in_score; return v == null ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }); })()}</td>}
+                                {showField('max_score') && <td className="p-3 border-r text-blue-600 border-slate-100">{Number(s.max_score).toLocaleString()}</td>}
+                                {showField('min_score') && <td className="p-3 border-r text-red-600 border-slate-100">{Number(s.min_score).toLocaleString()}</td>}
+                                {showField('avg_score') && <td className="p-3 whitespace-nowrap">{Number(s.avg_score).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>}
                             </tr>
                         );
                     })}
                 </tbody>
             </table>
+            </div>
         </div>
         );
     };
@@ -715,9 +922,10 @@ export default function App() {
                         </div>
 
                         {/* Section 4: Match List */}
-                        <div className="bg-white shadow-lg rounded-xl p-6 md:col-span-2 overflow-x-auto">
-                            <h3 className="text-lg font-bold mb-4 text-slate-800 border-b pb-2">경기 목록</h3>
-                            <table className="w-full text-left border-collapse text-sm">
+                        <div className="bg-white shadow-lg rounded-xl md:col-span-2 overflow-hidden">
+                            <h3 className="text-lg font-bold text-slate-800 border-b p-6 pb-4">경기 목록</h3>
+                            <div className="table-scroll">
+                            <table className="data-table w-full text-left text-sm">
                                 <thead>
                                     <tr className="bg-slate-900 text-white font-bold">
                                         <th className="p-3 rounded-tl-lg whitespace-nowrap min-w-[100px]">날짜</th>
@@ -741,6 +949,7 @@ export default function App() {
                                     ))}
                                 </tbody>
                             </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -884,8 +1093,8 @@ export default function App() {
         const currentGroups = groupedRecords.slice(startIndex, startIndex + itemsPerPage);
 
         return (
-            <div className="bg-white shadow-lg rounded-xl p-6 overflow-x-auto">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b pb-4 gap-4">
+            <div className="bg-white shadow-lg rounded-xl overflow-hidden">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b p-6 gap-4">
                     <h2 className="text-2xl font-bold text-slate-800">전체 경기 기록 (Round 그룹핑)</h2>
                     <input
                         type="text"
@@ -899,12 +1108,13 @@ export default function App() {
                     />
                 </div>
 
-                <div className="flex items-center gap-2 mb-4 bg-orange-50 p-3 rounded-lg border border-orange-100 w-fit">
-                    <span className="text-orange-500 font-bold">🔥</span>
+                <div className="flex items-center gap-2 m-6 mb-4 bg-orange-50 p-3 rounded-lg border border-orange-100 w-fit">
+                    <LocalFireDepartmentOutlinedIcon className="text-orange-500" fontSize="small" />
                     <span className="text-slate-600 text-xs font-bold">표시는 '만관 이상' 기록을 의미합니다.</span>
                 </div>
 
-                <table className="w-full text-left border-collapse text-sm min-w-[500px]">
+                <div className="table-scroll">
+                <table className="data-table w-full text-left text-sm min-w-[500px]">
                     <thead>
                         <tr className="bg-slate-900 text-white sticky-top">
                             <th className="p-2 text-center border-r border-slate-700 w-16">날짜</th>
@@ -962,7 +1172,7 @@ export default function App() {
                                                 <td className="p-1 text-center">
                                                     {isManganPlus ? (
                                                         <span className="inline-flex items-center justify-center w-6 h-6 bg-orange-100 text-orange-600 rounded-full font-bold shadow-inner text-[10px]">
-                                                            <span>🔥</span>
+                                                            <LocalFireDepartmentOutlinedIcon fontSize="small" />
                                                         </span>
                                                     ) : <span className="text-slate-300">-</span>}
                                                 </td>
@@ -978,11 +1188,12 @@ export default function App() {
                         )}
                     </tbody>
                 </table>
+                </div>
 
                 {/* Pagination Controls */}
                 {
                     totalPages > 1 && (
-                        <div className="mt-6 flex justify-center items-center gap-2">
+                        <div className="m-6 flex justify-center items-center gap-2">
                             <button
                                 disabled={currentPage === 1}
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -1057,7 +1268,7 @@ export default function App() {
     const renderMemberAdmin = () => (
         <div className="bg-white shadow-lg rounded-xl p-6">
             <div className="flex justify-between items-center mb-6 border-b pb-2">
-                <h2 className="text-2xl font-bold text-slate-800">👥 멤버 관리 (Admin)</h2>
+                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><GroupOutlinedIcon /> 멤버 관리 (Admin)</h2>
                 <button
                     onClick={handleSyncPlayers}
                     className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg font-bold border border-slate-200 transition"
@@ -1133,7 +1344,8 @@ export default function App() {
             <div className="bg-white shadow-lg rounded-xl p-6">
                 <div className="flex justify-between items-center border-b pb-2 mb-6">
                     <h2 className="text-2xl font-bold text-slate-800">
-                        {editingRound ? `✍️ 경기 기록 수정 (R${editingRound})` : '새로운 경기 기록 입력'}
+                        {editingRound && <EditNoteOutlinedIcon className="inline-block mr-1 align-middle" />}
+                        {editingRound ? `경기 기록 수정 (R${editingRound})` : '새로운 경기 기록 입력'}
                     </h2>
                     {editingRound && (
                         <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-bold border border-orange-200 shadow-sm animate-pulse">
@@ -1152,12 +1364,12 @@ export default function App() {
                     />
                 </div>
 
-                <div className="overflow-x-auto mb-6 border rounded-xl shadow-inner bg-slate-50">
+                <div className="table-scroll mb-6 border rounded-xl shadow-inner bg-slate-50">
 
-                    <table className="w-full text-left border-collapse text-sm min-w-[650px] table-fixed">
+                    <table className="data-table w-full text-left text-sm min-w-[650px] table-fixed">
                         <thead>
                             <tr className="bg-slate-900 text-white text-center text-sm sticky-top">
-                                <th className="p-2 font-black border-r border-slate-700 w-10 sticky-left bg-slate-900 z-[31] whitespace-nowrap">바람</th>
+                                <th className="p-2 font-black border-r border-slate-700 w-10 sticky-corner bg-slate-900 whitespace-nowrap">바람</th>
                                 <th className="p-2 font-black border-r border-slate-700 w-24 whitespace-nowrap">이름</th>
                                 <th className="p-2 font-black border-r border-slate-700 w-28 whitespace-nowrap">최종 점수</th>
                                 <th className="p-2 font-black border-r border-slate-700 text-orange-400 w-10 whitespace-nowrap">순위</th>
@@ -1174,7 +1386,7 @@ export default function App() {
                         <tbody>
                             {newPlayers.map((p, idx) => (
                                 <tr key={idx} className="border-b transition text-center hover:bg-slate-50 border-slate-100">
-                                    <td className="p-2 font-black text-slate-800 bg-slate-100 border-r border-white sticky-left z-20">{p.wind}</td>
+                                    <td className="p-2 font-black text-slate-800 bg-slate-100 border-r border-white sticky-column">{p.wind}</td>
                                     <td className="p-1 border-r border-slate-200" onClick={(e) => {
                                         // Force list to show on some browsers by clearing if empty
                                         const input = e.currentTarget.querySelector('input');
@@ -1351,14 +1563,16 @@ export default function App() {
 
                 <div className="flex flex-col md:flex-row justify-between items-center bg-slate-50 p-6 rounded-xl border border-slate-200">
                     <div className="mb-4 md:mb-0">
-                        <span className="text-slate-600 font-bold mr-4">점수 검증 (총합 10만점) :</span>
-                        <span className={`text-2xl font-black ${totalScore === 100000 ? 'text-green-600' : 'text-red-500'}`}>
-                            {totalScore.toLocaleString()}
-                        </span>
-                        {totalScore !== 100000 && (
-                            <span className="ml-3 text-sm text-red-500 font-bold">
-                                {isNaN(totalScore) ? '' : (100000 - totalScore) > 0 ? `(${(100000 - totalScore).toLocaleString()}점 부족)` : `(${(totalScore - 100000).toLocaleString()}점 초과)`}
+                        <div className="flex items-baseline gap-3">
+                            <span className="text-slate-600 font-bold">점수 검증 (총합 10만점) :</span>
+                            <span className={`text-xl font-black ${totalScore === 100000 ? 'text-green-600' : 'text-red-500'}`}>
+                                {totalScore.toLocaleString()}
                             </span>
+                        </div>
+                        {totalScore !== 100000 && (
+                            <div className="mt-1 text-sm text-red-500 font-bold">
+                                {isNaN(totalScore) ? '' : (100000 - totalScore) > 0 ? `(${(100000 - totalScore).toLocaleString()}점 부족)` : `(${(totalScore - 100000).toLocaleString()}점 초과)`}
+                            </div>
                         )}
                     </div>
 
@@ -1378,7 +1592,7 @@ export default function App() {
                                 </div>
                                 <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
                                     💡 이 라운드는 hand 데이터가 저장되어 있어 <b>[수정 완료]</b> 시 점수/우마/등급만 업데이트되고 진행 내역은 그대로 보존됩니다.<br/>
-                                    hand 자체를 수정하려면 <b>🀄 한 국씩 입력 → ✏ 수정</b> 메뉴를 이용하세요.
+                                    hand 자체를 수정하려면 <b>한 국씩 입력 → 수정</b> 메뉴를 이용하세요.
                                 </div>
                                 <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                                     {order.map(hn => {
@@ -1440,7 +1654,7 @@ export default function App() {
                     })()}
                     {editingRound && editingRoundHands.length === 0 && (
                         <div className="mb-6 bg-slate-100 rounded-lg p-3 border border-slate-200 text-sm text-slate-500">
-                            ℹ️ 이 라운드는 '결과만 등록'으로 저장되어 진행 내역(hand 데이터)이 없습니다.
+                            <InfoOutlinedIcon className="mr-1 align-middle" fontSize="small" />이 라운드는 '결과만 등록'으로 저장되어 진행 내역(hand 데이터)이 없습니다.
                         </div>
                     )}
 
@@ -1448,14 +1662,14 @@ export default function App() {
                         <button
                             onClick={handleClearRecord}
                             disabled={isSubmitting}
-                            className={`px-6 py-3 rounded-lg font-bold shadow-md transition-colors border ${isSubmitting ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100 hover:text-slate-800'}`}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold shadow-md transition-colors border ${isSubmitting ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100 hover:text-slate-800'}`}
                         >
                             전체 지우기
                         </button>
                         <button
                             onClick={handleSubmitRecord}
                             disabled={totalScore !== 100000 || isSubmitting}
-                            className={`px-8 py-3 rounded-lg font-bold shadow-md transition-colors border border-transparent flex items-center gap-2 ${totalScore === 100000 && !isSubmitting ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`}
+                            className={`px-5 py-2 rounded-lg text-sm font-bold shadow-md transition-colors border border-transparent flex items-center gap-2 ${totalScore === 100000 && !isSubmitting ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`}
                         >
                             {isSubmitting ? (
                                 <>
@@ -1491,7 +1705,7 @@ export default function App() {
         return (
             <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-slate-800 border-b pb-2 mb-4 italic flex items-center gap-2">
-                    <span>📅</span> 일자별 요약 리포트
+                    <CalendarMonthOutlinedIcon /> 일자별 요약 리포트
                 </h2>
                 {sortedDays.map(day => (
                     <div key={day} className="bg-white shadow-lg rounded-xl overflow-hidden border border-slate-200 transition-all hover:shadow-xl">
@@ -1499,11 +1713,11 @@ export default function App() {
                             <span className="font-black text-lg">{day} ({new Date(day).toLocaleDateString('ko-KR', { weekday: 'short' })})</span>
                             <span className="text-xs text-slate-400">총 {new Set(grouped[day].map(p => p.player_name)).size}명 참가</span>
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
+                        <div className="table-scroll">
+                            <table className="data-table w-full text-left text-sm whitespace-nowrap">
                                 <thead>
                                     <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
-                                        <th className="p-3 pl-6 sticky-left bg-slate-50 z-20">이름</th>
+                                        <th className="p-3 pl-6 sticky-column bg-slate-50">이름</th>
                                         <th className="p-3 text-center">게임수</th>
                                         <th className="p-3 text-center">총 우마</th>
                                         <th className="p-3 text-center">평균순위</th>
@@ -1517,7 +1731,7 @@ export default function App() {
                                 <tbody>
                                     {grouped[day].map((p, idx) => (
                                         <tr key={p.player_name} className={`border-b border-slate-50 hover:bg-slate-50 transition ${idx === 0 ? 'bg-orange-50/30' : ''}`}>
-                                            <td className={`p-3 pl-6 font-bold sticky-left z-20 ${idx === 0 ? 'bg-orange-50/30 text-orange-700' : 'bg-white text-slate-800'}`}>
+                                            <td className={`p-3 pl-6 font-bold sticky-column ${idx === 0 ? 'bg-orange-50 text-orange-700' : 'bg-white text-slate-800'}`}>
                                                 {idx === 0 && <span className="mr-2">👑</span>}
                                                 {p.player_name}
                                             </td>
@@ -1572,10 +1786,10 @@ export default function App() {
         };
 
         return (
-            <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans text-slate-800">
-                <div className="bg-white p-8 rounded-xl shadow-lg max-w-sm w-full">
-                    <h1 className="text-3xl font-black text-center text-slate-800 mb-6 tracking-tight">
-                        <span className="text-orange-500">🀄</span> 마작 기록
+            <div className="glass-login min-h-screen flex items-center justify-center p-4 font-sans text-slate-800">
+                <div className="glass-panel bg-white p-8 rounded-xl shadow-lg max-w-sm w-full">
+                    <h1 className="text-3xl font-black text-center text-slate-800 mb-6 tracking-tight flex items-center justify-center gap-2">
+                        <MahjongIcon size={32} /> 마작 기록
                     </h1>
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div>
@@ -1599,13 +1813,13 @@ export default function App() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row h-screen">
+        <div className="glass-app min-h-screen flex flex-col md:flex-row h-screen">
             {/* Sidebar Navigation */}
-            <aside className="w-full md:w-64 bg-slate-900 text-white flex flex-col shadow-2xl shrink-0 z-40">
+            <aside className="glass-sidebar relative w-full md:w-64 bg-slate-900 text-white flex flex-col shadow-2xl shrink-0 z-40">
                 <div className="p-4 md:p-6 border-b border-slate-700 flex justify-between items-center md:block">
                     <div>
                         <h1 className="text-xl md:text-2xl font-black tracking-tight flex items-center gap-2">
-                            <span className="text-orange-500">🀄</span>
+                            <MahjongIcon size={24} />
                             <span className="md:hidden lg:inline">Mahjong Tracker</span>
                             <span className="hidden md:inline lg:hidden">MT</span>
                         </h1>
@@ -1616,24 +1830,24 @@ export default function App() {
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
                         className="md:hidden p-2 text-slate-400 hover:text-white"
                     >
-                        {isMenuOpen ? '✕' : '☰'}
+                        {isMenuOpen ? <CloseRoundedIcon /> : <MenuRoundedIcon />}
                     </button>
                 </div>
 
-                <nav className={`${isMenuOpen ? 'flex' : 'hidden'} md:flex flex-col flex-1 p-3 md:p-4 space-y-1 md:space-y-2 overflow-y-auto no-scrollbar`}>
+                <nav className={`${isMenuOpen ? 'flex' : 'hidden'} absolute top-full left-0 right-0 z-50 max-h-[calc(100vh-76px)] flex-col p-3 space-y-1 overflow-y-auto no-scrollbar bg-slate-900 border-t border-white/10 shadow-2xl md:static md:flex md:max-h-none md:flex-1 md:p-4 md:space-y-2 md:bg-transparent md:border-t-0 md:shadow-none`}>
                     {[
                         // 기록 입력: 관리자/참여자 모두 (맨 위)
-                        { id: 'mobile-record', label: '🀄 한 국씩 입력' },
-                        { id: 'new-record', label: '📝 결과만 등록' },
-                        { id: 'daily', label: '🏠 일일 성적' },
-                        { id: 'records', label: '📊 개별 기록' },
-                        { id: 'stats', label: '📈 전체 통계' },
-                        { id: 'dashboard', label: '🏛️ 명예의 전당' },
-                        { id: 'rival', label: '⚔️ 라이벌 분석' },
+                        { id: 'mobile-record', label: '한 국씩 입력', icon: MahjongIcon },
+                        { id: 'new-record', label: '결과만 등록', icon: EditNoteOutlinedIcon },
+                        { id: 'daily', label: '일일 성적', icon: HomeOutlinedIcon },
+                        { id: 'records', label: '개별 기록', icon: TableChartOutlinedIcon },
+                        { id: 'stats', label: '전체 통계', icon: InsightsOutlinedIcon },
+                        { id: 'dashboard', label: '명예의 전당', icon: EmojiEventsOutlinedIcon },
+                        { id: 'rival', label: '라이벌 분석', icon: CompareArrowsOutlinedIcon },
                         ...(userRole === 'admin' ? [
-                            { id: 'member-admin', label: '👥 멤버 관리' }
+                            { id: 'member-admin', label: '멤버 관리', icon: GroupOutlinedIcon }
                         ] : []),
-                        { id: 'suggestions', label: '📢 업데이트 & 문의' },
+                        { id: 'suggestions', label: '업데이트 & 문의', icon: CampaignOutlinedIcon },
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -1641,11 +1855,12 @@ export default function App() {
                                 setActiveTab(tab.id);
                                 setIsMenuOpen(false);
                             }}
-                            className={`w-full text-left px-4 py-3 md:px-5 md:py-4 rounded-xl font-bold transition-all duration-200 ${activeTab === tab.id
+                            className={`w-full text-left px-4 py-3 md:px-5 md:py-4 rounded-xl font-bold transition-all duration-200 flex items-center gap-3 ${activeTab === tab.id
                                 ? 'bg-orange-500 text-white shadow-md shadow-orange-500/30'
                                 : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                                 }`}
                         >
+                            {React.createElement(tab.icon, { className: 'shrink-0', fontSize: 'small' })}
                             <span className="text-sm md:text-base">{tab.label}</span>
                         </button>
                     ))}
@@ -1666,16 +1881,18 @@ export default function App() {
                             }}
                             className="w-full text-left px-4 py-3 md:px-5 md:py-4 rounded-xl font-bold transition-all duration-200 text-red-500 hover:bg-red-500/10 hover:text-red-400 flex items-center gap-2"
                         >
-                            <span className="text-sm md:text-base">👋 로그아웃</span>
+                            <LogoutOutlinedIcon fontSize="small" />
+                            <span className="text-sm md:text-base">로그아웃</span>
                         </button>
                     </div>
                 </nav>
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 p-6 md:p-8 lg:p-10 overflow-y-auto">
+            <main className="glass-main flex-1 p-6 md:p-8 lg:p-10 overflow-y-auto">
                 <div className="max-w-6xl mx-auto">
                     {/* Header Controls */}
+                    {activeTab !== 'stats' && (
                     <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                         <div className="w-full md:w-auto">
                             {activeTab === 'records' && (
@@ -1685,12 +1902,12 @@ export default function App() {
                                     }}
                                     className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-bold shadow-md transition-all active:scale-95 text-sm w-full md:w-auto"
                                 >
-                                    <span>📥</span> 엑셀 백업 다운로드
+                                    <DownloadRoundedIcon fontSize="small" /> 엑셀 백업 다운로드
                                 </button>
                             )}
                         </div>
                         <div className="inline-flex bg-white rounded-lg p-1 shadow-sm border border-slate-200 w-full md:w-auto overflow-x-auto no-scrollbar">
-                            {['all', '2025', '2026'].map(year => (
+                            {YEAR_OPTIONS.map(year => (
                                 <button
                                     key={year}
                                     onClick={() => setGlobalYear(year)}
@@ -1701,6 +1918,7 @@ export default function App() {
                             ))}
                         </div>
                     </div>
+                    )}
 
                     {activeTab === 'dashboard' && renderDashboard()}
                     {activeTab === 'daily' && renderDailyStats()}
