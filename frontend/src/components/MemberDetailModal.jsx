@@ -128,6 +128,8 @@ export default function MemberDetailModal({ playerName, allStats = [], handStats
                         <tbody>
                             <Row label="유국 횟수" value={int(drawC)} />
                             <Row label="유국 시 텐파이율" value={pct(drawTenpaiC, drawC)} />
+                            <Row label="유국만관" value={int(h.nagashi_count)} hilite="text-pink-700" />
+                            <Row label="구종구패 선언" value={int(h.kyuushu_count)} />
                         </tbody>
                     </Section>
 

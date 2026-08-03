@@ -181,8 +181,10 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
 
     // ===== Step 1: 자리 배정 =====
     const renderSetup = () => {
+        const registeredNames = new Set(players.map(p => p.name));
         const allFilled = seats.every(s => s.name);
-        const duplicates = new Set(seats.map(s => s.name).filter(Boolean)).size !== seats.filter(s => s.name).length;
+        const duplicates = new Set(seats.map(s => s.name).filter(Boolean)).size !== seats.filter(Boolean).filter(s => s.name).length;
+        const invalidNames = seats.filter(s => s.name && !registeredNames.has(s.name)).map(s => s.name);
         return (
             <div className="p-4 space-y-4">
                 <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><MahjongIcon size={22} /> 대국 시작</h2>
@@ -191,26 +193,35 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                     <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full mt-1 p-3 border-2 border-slate-200 rounded-lg bg-slate-50" />
                 </div>
                 <div>
-                    <label className="text-sm font-bold text-slate-700">자리 배정</label>
+                    <label className="text-sm font-bold text-slate-700">자리 배정 <span className="text-[10px] font-normal text-slate-400">(이름 일부만 타이핑하면 자동 필터)</span></label>
+                    {/* 검색형 입력: 타이핑하면 아래 목록이 자동 필터됨 (datalist) */}
+                    <datalist id="mr-player-list">
+                        {players.map(p => <option key={p.id} value={p.name} />)}
+                    </datalist>
                     <div className="grid grid-cols-2 gap-3 mt-2">
                         {seats.map((s, idx) => (
                             <div key={s.wind} className="bg-white border-2 border-slate-200 rounded-xl p-3">
                                 <div className="text-center text-lg font-black text-slate-800 mb-2">{s.wind}{idx === 0 && <span className="text-xs text-orange-500 ml-1">(시작 친)</span>}</div>
-                                <select value={s.name} onChange={e => setSeats(prev => prev.map((p, i) => i === idx ? { ...p, name: e.target.value } : p))} className="w-full p-2 border border-slate-300 rounded">
-                                    <option value="">선택...</option>
-                                    {players.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
-                                </select>
+                                <input
+                                    type="text"
+                                    list="mr-player-list"
+                                    value={s.name}
+                                    placeholder="이름 검색..."
+                                    onChange={e => setSeats(prev => prev.map((p, i) => i === idx ? { ...p, name: e.target.value } : p))}
+                                    className={'w-full p-2 border rounded text-center ' + (s.name && !registeredNames.has(s.name) ? 'border-red-400 bg-red-50' : 'border-slate-300')}
+                                />
                             </div>
                         ))}
                     </div>
                     {duplicates && <div className="text-xs text-red-500 mt-2">⚠ 중복된 멤버가 있습니다</div>}
+                    {invalidNames.length > 0 && <div className="text-xs text-red-500 mt-2">⚠ 등록되지 않은 이름: {invalidNames.join(', ')}</div>}
                 </div>
                 <div className="flex gap-2 pt-2">
                     <button onClick={onClose} className="flex-1 py-3 bg-slate-200 text-slate-700 rounded-lg font-bold">닫기</button>
                     <button
-                        disabled={!allFilled || duplicates}
+                        disabled={!allFilled || duplicates || invalidNames.length > 0}
                         onClick={() => setStep('play')}
-                        className={'flex-1 py-3 rounded-lg font-bold ' + (allFilled && !duplicates ? 'bg-orange-500 text-white' : 'bg-slate-300 text-slate-500')}
+                        className={'flex-1 py-3 rounded-lg font-bold ' + (allFilled && !duplicates && invalidNames.length === 0 ? 'bg-orange-500 text-white' : 'bg-slate-300 text-slate-500')}
                     >
                         대국 시작
                     </button>
@@ -281,7 +292,20 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
 
     const ABORTION_LABELS = { kyuushu: '구종구패', sufon: '사풍연타', suucha_riichi: '사가리치', suukantsu: '사깡산료' };
     const recordAbortion = (abortionType) => {
-        if (!window.confirm(`${ABORTION_LABELS[abortionType]} 으로 처리할까요? (점수 ${abortionType === 'suucha_riichi' ? '4명 -1000' : '변동 없음'}, 본장 +1, 친 유지)`)) return;
+        // 구종구패는 선언자 1명이 있으므로 이름 입력 받음 (통계 카운트용)
+        let abortionPlayer = null;
+        if (abortionType === 'kyuushu') {
+            const names = seats.filter(s => s.name).map(s => s.name);
+            const choice = window.prompt('구종구패를 선언한 사람 이름을 입력하세요:\n' + names.join(' / '));
+            if (!choice) return;
+            abortionPlayer = choice.trim();
+            if (!names.includes(abortionPlayer)) {
+                alert('해당 이름이 자리에 없습니다.');
+                return;
+            }
+        }
+        const who = abortionPlayer ? ` (선언: ${abortionPlayer})` : '';
+        if (!window.confirm(`${ABORTION_LABELS[abortionType]}${who} 으로 처리할까요? (점수 ${abortionType === 'suucha_riichi' ? '4명 -1000' : '변동 없음'}, 본장 +1, 친 유지)`)) return;
         setHands(prev => [...prev, {
             hand_number: meta.hand_number,
             hand_wind: meta.hand_wind,
@@ -289,6 +313,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             honba: meta.honba,
             win_type: 'abortion',
             abortion_type: abortionType,
+            abortion_player: abortionPlayer,
             winner_name: null,
             deal_in_name: null,
             riichi_e: abortionType === 'suucha_riichi',
@@ -650,7 +675,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                                         }
                                                         return '유국';
                                                     }
-                                                    if (h.win_type === 'abortion') return `도중유국 (${({kyuushu:'구종구패',sufon:'사풍연타',suucha_riichi:'사가리치',suukantsu:'사깡산료'})[h.abortion_type] || '?'})`;
+                                                    if (h.win_type === 'abortion') return `도중유국 (${({kyuushu:'구종구패',sufon:'사풍연타',suucha_riichi:'사가리치',suukantsu:'사깡산료'})[h.abortion_type] || '?'}${h.abortion_player ? ' · ' + h.abortion_player : ''})`;
                                                     if (h.win_type === 'chombo') return `촌보 (${h.chombo_player || '?'})`;
                                                     if (h.win_type === 'late_penalty') return `지각 (${h.late_player || '?'}: −${((h.late_penalty || 0) * 3).toLocaleString()})`;
                                                     return `${h.winner_name} ${h.win_type === 'tsumo' ? '쯔모' : '론(' + (h.deal_in_name || '?') + ')'}`;
@@ -1256,6 +1281,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                         winner_name: (h.win_type === 'tsumo' || h.win_type === 'ron') ? h.winner_name : null,
                         deal_in_name: h.win_type === 'ron' ? h.deal_in_name : null,
                         abortion_type: h.win_type === 'abortion' ? h.abortion_type : null,
+                        abortion_player: h.win_type === 'abortion' ? (h.abortion_player || null) : null,
                         chombo_player: h.win_type === 'chombo' ? h.chombo_player : null,
                         late_player: h.win_type === 'late_penalty' ? h.late_player : null,
                         late_penalty: h.win_type === 'late_penalty' ? (parseInt(h.late_penalty) || null) : null,
