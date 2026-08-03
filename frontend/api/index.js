@@ -280,7 +280,7 @@ async function insertHands(client, hands, matchRound, matchDate) {
        abortion_type, chombo_player,
        nagashi_e, nagashi_s, nagashi_w, nagashi_n,
        multi_index, is_furo,
-       late_player, late_penalty)
+       late_player, late_penalty, abortion_player)
     VALUES ($1,  $2,  $3,  $4,  $5,
             $6,  $7,  $8,  $9,
             $10, $11, $12, $13, $14,
@@ -292,7 +292,7 @@ async function insertHands(client, hands, matchRound, matchDate) {
             $33, $34,
             $35, $36, $37, $38,
             $39, $40,
-            $41, $42)
+            $41, $42, $43)
   `;
   const toIntOrNull = (v) => (v == null || v === '' ? null : parseInt(v));
   const toBool = (v) => v === true || v === 'true';
@@ -341,6 +341,7 @@ async function insertHands(client, hands, matchRound, matchDate) {
       h.is_furo == null ? null : !!h.is_furo, // 후로 여부 (null=정보 없음, true/false)
       h.win_type === 'late_penalty' ? (h.late_player || null) : null, // 지각자
       h.win_type === 'late_penalty' ? toIntOrNull(h.late_penalty) : null, // 1명당 분배 점수
+      h.win_type === 'abortion' ? (h.abortion_player || null) : null, // 도중유국 선언자 (구종구패 등)
     ]);
   }
 }
@@ -424,7 +425,7 @@ app.get('/api/records/:round/hands', async (req, res) => {
               riichi_e, riichi_s, riichi_w, riichi_n,
               abortion_type, chombo_player,
               nagashi_e, nagashi_s, nagashi_w, nagashi_n,
-              is_furo, late_player, late_penalty
+              is_furo, late_player, late_penalty, abortion_player
          FROM hand_results
         WHERE match_round = $1
         ORDER BY hand_number ASC, multi_index ASC`,
@@ -457,10 +458,14 @@ app.get('/api/hand-stats', async (req, res) => {
           hr.score_class,
           hr.is_ippatsu,
           hr.is_furo,
+          hr.abortion_type,
+          hr.abortion_player,
           CASE mr.wind WHEN '동' THEN hr.tenpai_e WHEN '남' THEN hr.tenpai_s
                        WHEN '서' THEN hr.tenpai_w WHEN '북' THEN hr.tenpai_n END AS my_tenpai,
           CASE mr.wind WHEN '동' THEN hr.riichi_e WHEN '남' THEN hr.riichi_s
-                       WHEN '서' THEN hr.riichi_w WHEN '북' THEN hr.riichi_n END AS my_riichi
+                       WHEN '서' THEN hr.riichi_w WHEN '북' THEN hr.riichi_n END AS my_riichi,
+          CASE mr.wind WHEN '동' THEN hr.nagashi_e WHEN '남' THEN hr.nagashi_s
+                       WHEN '서' THEN hr.nagashi_w WHEN '북' THEN hr.nagashi_n END AS my_nagashi
         FROM match_results mr
         LEFT JOIN hand_results hr ON hr.match_round = mr.round
         ${where}
@@ -491,6 +496,8 @@ app.get('/api/hand-stats', async (req, res) => {
         COUNT(*) FILTER (WHERE winner_name = player_name AND is_furo IS NOT NULL) AS furo_known_wins,
         COUNT(*) FILTER (WHERE winner_name = player_name AND is_furo IS TRUE) AS furo_wins,
         COUNT(*) FILTER (WHERE winner_name = player_name AND is_furo IS FALSE) AS menzen_wins,
+        COUNT(*) FILTER (WHERE my_nagashi)                                      AS nagashi_count,
+        COUNT(*) FILTER (WHERE abortion_type = 'kyuushu' AND abortion_player = player_name) AS kyuushu_count,
         (SELECT MIN(match_round) FROM hand_results)                             AS first_hand_round,
         (SELECT TO_CHAR(MIN(match_date), 'YYYY-MM-DD') FROM hand_results)       AS first_hand_date
       FROM hand_player
