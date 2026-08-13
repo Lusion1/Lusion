@@ -176,9 +176,10 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
 
     useEffect(() => { fetchList(); /* eslint-disable-next-line */ }, [filterStatus, filterCategory]);
 
-    // 작성 모달 열 때 닉네임 기본값 = 로그인 ID
+    // 작성 모달 열 때 닉네임 기본값 = 로그인 ID (관리자는 '관리자'로 표시)
+    const defaultNickname = isAdmin ? '관리자' : (userLoginId || '');
     const openWrite = () => {
-        setWriteForm({ nickname: userLoginId || '', title: '', content: '', category: 'inquiry' });
+        setWriteForm({ nickname: defaultNickname, title: '', content: '', category: 'inquiry' });
         setWriteModal(true);
     };
 
@@ -211,7 +212,7 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
     const openDetail = async (item) => {
         setComments([]);
         setCommentDraft('');
-        setCommentNickname(userLoginId || '');
+        setCommentNickname(defaultNickname);
         fetchComments(item.id);
         // 최신 데이터로 다시 조회 (다른 사람이 답글 단 경우 반영)
         try {
