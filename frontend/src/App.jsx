@@ -453,7 +453,7 @@ export default function App() {
             { title: '🃏 후로의 정석', item: '후로율 (화료 중)', key: 'furo_rate', sort: 'desc', format: v => v == null ? '-' : `${(v * 100).toFixed(1)}%` },
             { title: '🀫 멘젠의 장인', item: '멘젠율 (화료 중)', key: 'menzen_rate', sort: 'desc', format: v => v == null ? '-' : `${(v * 100).toFixed(1)}%` },
             { title: '🥊 강펀치', item: '평균 화료금액', key: 'avg_win_score', sort: 'desc', format: v => v == null ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }) },
-            { title: '🌸 낭만폭발', item: '역만 달성 (헤아림·더블 포함)', key: 'yakuman_total', sort: 'desc', nonZero: true, format: v => (parseInt(v) || 0) > 0 ? `${v}회` : '-' },
+            { title: '🌸 낭만폭발', item: '역만 달성', key: 'yakuman_total', sort: 'desc', nonZero: true, format: v => (parseInt(v) || 0) > 0 ? `${v}회` : '-' },
         ];
 
         const minMatchesInfo = (() => {
