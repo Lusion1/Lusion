@@ -452,6 +452,8 @@ export default function App() {
             { title: '💸 기부천사', item: '토비율', key: 'tobi_rate', sort: 'desc', format: v => `${(v * 100).toFixed(1)}%` },
             { title: '🃏 후로의 정석', item: '후로율 (화료 중)', key: 'furo_rate', sort: 'desc', format: v => v == null ? '-' : `${(v * 100).toFixed(1)}%` },
             { title: '🀫 멘젠의 장인', item: '멘젠율 (화료 중)', key: 'menzen_rate', sort: 'desc', format: v => v == null ? '-' : `${(v * 100).toFixed(1)}%` },
+            { title: '🥊 강펀치', item: '평균 화료금액', key: 'avg_win_score', sort: 'desc', format: v => v == null ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }) },
+            { title: '🌸 낭만폭발', item: '역만 달성 (헤아림·더블 포함)', key: 'yakuman_total', sort: 'desc', nonZero: true, format: v => (parseInt(v) || 0) > 0 ? `${v}회` : '-' },
         ];
 
         const minMatchesInfo = (() => {
@@ -472,8 +474,10 @@ export default function App() {
         })();
         const minMatches = minMatchesInfo.min;
 
-        const getSortedForCategory = (key, direction) => {
-            const list = key === 'total_matches' ? stats : stats.filter(s => s.total_matches >= minMatches);
+        const getSortedForCategory = (key, direction, nonZero = false) => {
+            // statsWithHand: stats + handStats 병합본 (avg_win_score, yakuman_total 등 포함)
+            let list = key === 'total_matches' ? statsWithHand : statsWithHand.filter(s => s.total_matches >= minMatches);
+            if (nonZero) list = list.filter(s => (Number(s[key]) || 0) > 0); // 0회는 순위 제외 (낭만폭발 등)
             if (list.length === 0) return [];
 
             return [...list].sort((a, b) => {
@@ -512,7 +516,7 @@ export default function App() {
                     </thead>
                     <tbody>
                         {dashboardCategories.map((cat, idx) => {
-                            const top3 = getSortedForCategory(cat.key, cat.sort);
+                            const top3 = getSortedForCategory(cat.key, cat.sort, !!cat.nonZero);
                             return (
                                 <tr key={idx} className="border-b transition hover:bg-slate-50 border-slate-100">
                                     <td className="sticky-column w-[124px] min-w-[124px] max-w-[124px] px-3 py-2.5 font-bold text-slate-800 border-r border-slate-200 bg-slate-50 text-left whitespace-normal leading-snug">{cat.title}</td>
@@ -571,10 +575,22 @@ export default function App() {
             avg_win_score: h.avg_win_score != null ? Number(h.avg_win_score) : null,
             avg_deal_in_score: h.avg_deal_in_score != null ? Number(h.avg_deal_in_score) : null,
             ippatsu_rate: wins > 0 ? (ipp / wins) : null,
+            // 역만 계열 합계 (역만 + 헤아림 + 더블 이상) — 명예의 전당 '낭만폭발' 용
+            yakuman_total: (parseInt(p.total_yakuman) || 0) + (parseInt(p.total_kazoeyakuman) || 0) + (parseInt(p.total_doubleyakuman) || 0),
         };
     });
+    // === 순위화 자격 기준: 판수 미달 멤버는 정렬 대상에서 제외 (항상 하단, 순위 '-') ===
+    // 2026년/전체 공통 20판. 추후 연도별 조정 시 이 함수만 수정
+    const RANK_MIN_MATCHES = 20;
+    const isRankQualified = (p) => (parseInt(p.total_matches) || 0) >= RANK_MIN_MATCHES;
+
     // 정렬 시 그 컬럼 값이 없는(null/undefined) 멤버는 항상 맨 뒤로 (방향 무관, 표에는 그대로 표시됨)
     const sortedStats = [...statsWithHand].sort((a, b) => {
+        // 판수 자격: 미달 멤버는 정렬 방향과 무관하게 항상 하단
+        const aQ = isRankQualified(a);
+        const bQ = isRankQualified(b);
+        if (aQ !== bQ) return aQ ? -1 : 1;
+
         const aHas = a[sortConfig.key] != null;
         const bHas = b[sortConfig.key] != null;
         if (aHas !== bHas) return aHas ? -1 : 1; // 값 있는 쪽이 항상 앞
@@ -634,6 +650,7 @@ export default function App() {
                     <h2 className="text-2xl font-bold text-slate-800">
                         전체 통계 <span className="text-sm font-normal text-slate-400 ml-2">(헤더를 클릭하면 정렬됩니다)</span>
                         <span className="block text-[11px] font-normal text-slate-500 mt-1">* 표시 컬럼은 &lsquo;한 국씩 입력&rsquo; 으로 저장된 국 기준 (옛 결과만 등록 기록은 제외)</span>
+                        <span className="block text-[11px] font-normal text-amber-600 mt-0.5">🏅 순위는 {RANK_MIN_MATCHES}판 이상부터 반영됩니다. 판수 미달 멤버는 순위 &lsquo;-&rsquo;로 표시되며 목록 하단에 위치합니다.</span>
                     </h2>
                     <Button
                         variant={isStatsFilterOpen ? 'contained' : 'outlined'}
@@ -811,11 +828,16 @@ export default function App() {
                     </tr>
                 </thead>
                 <tbody>
-                    {filteredStats.map((s, idx) => {
+                    {(() => {
+                        // 순위 번호: 판수 자격(20판+) 멤버만 1, 2, 3... 미달 멤버는 '-'
+                        let rankCounter = 0;
+                        return filteredStats.map((s, idx) => {
                         const isHighlighted = statsPlayerMode === 'highlight' && selectedStatsPlayers.includes(s.player_name);
+                        const qualified = isRankQualified(s);
+                        const rankLabel = qualified ? String(++rankCounter) : '-';
                         return (
-                            <tr key={s.player_name} className={`group border-b transition text-center ${isHighlighted ? 'bg-orange-100 border-orange-200 hover:bg-orange-200' : 'hover:bg-slate-50 border-slate-100'}`}>
-                                <td className={`p-3 font-bold border-r sticky-column cursor-pointer hover:underline ${isHighlighted ? 'border-orange-200 text-orange-900 bg-orange-100 group-hover:bg-orange-200' : 'border-slate-100 text-slate-800 bg-white group-hover:bg-slate-50'}`} onClick={() => setDetailMember(s.player_name)} title="클릭: 상세 통계"><span className="text-xs text-slate-400 mr-1">{idx + 1}</span> {s.player_name}</td>
+                            <tr key={s.player_name} className={`group border-b transition text-center ${isHighlighted ? 'bg-orange-100 border-orange-200 hover:bg-orange-200' : 'hover:bg-slate-50 border-slate-100'} ${!qualified ? 'opacity-70' : ''}`}>
+                                <td className={`p-3 font-bold border-r sticky-column cursor-pointer hover:underline ${isHighlighted ? 'border-orange-200 text-orange-900 bg-orange-100 group-hover:bg-orange-200' : 'border-slate-100 text-slate-800 bg-white group-hover:bg-slate-50'}`} onClick={() => setDetailMember(s.player_name)} title={qualified ? '클릭: 상세 통계' : `클릭: 상세 통계 (순위 반영은 ${RANK_MIN_MATCHES}판부터)`}><span className="text-xs text-slate-400 mr-1">{rankLabel}</span> {s.player_name}</td>
                                 {showField('total_matches') && <td className="p-3 font-medium border-r border-slate-100">{s.total_matches}</td>}
                                 {showField('avg_rank') && <td className={`p-3 font-black border-r border-slate-100 ${getRankColor(idx)}`}>{Number(s.avg_rank).toFixed(2)}</td>}
                                 {showField('avg_uma') && <td className={`p-3 border-r border-slate-100 ${s.avg_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.avg_uma).toFixed(2)}</td>}
@@ -848,7 +870,8 @@ export default function App() {
                                 {showField('avg_score') && <td className="p-3 whitespace-nowrap">{Number(s.avg_score).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>}
                             </tr>
                         );
-                    })}
+                        });
+                    })()}
                 </tbody>
             </table>
             </div>
@@ -1128,8 +1151,21 @@ export default function App() {
                         </tr>
                     </thead>
                     <tbody>
-                        {currentGroups.length > 0 ? currentGroups.map((group, groupIdx) => {
+                        {(() => {
+                            // 날짜별 교차 인덱스 (날짜가 바뀔 때마다 0/1 토글) — 날짜 셀 색 구분용
+                            const dateParity = {};
+                            let parity = 0, prevDate = null;
+                            currentGroups.forEach(g => {
+                                const d = g[0]?.match_date;
+                                if (d !== prevDate) { parity = prevDate === null ? 0 : 1 - parity; prevDate = d; }
+                                if (!(d in dateParity)) dateParity[d] = parity;
+                            });
+                            return currentGroups.length > 0 ? currentGroups.map((group, groupIdx) => {
                             const bgClass = groupIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50';
+                            // 은은한 날짜 셀 틴트: 날짜가 바뀔 때마다 하늘색 ↔ 흰색 교차
+                            const dateCellClass = dateParity[group[0]?.match_date] === 0
+                                ? 'bg-sky-50 text-sky-800'
+                                : 'bg-white text-slate-600';
                             return (
                                 <React.Fragment key={groupIdx}>
                                     {groupIdx > 0 && <tr className="border-t-4 border-slate-200"></tr>}
@@ -1139,8 +1175,8 @@ export default function App() {
                                         return (
                                             <tr key={r.id} className={`${bgClass} hover:bg-orange-100 transition border-b border-slate-100`}>
                                                 {itemIdx === 0 && (
-                                                    <td rowSpan={group.length} className="p-1 align-middle text-center border-r border-slate-200 bg-white">
-                                                        <div className="font-bold text-slate-600 whitespace-nowrap text-sm md:text-base">{new Date(r.match_date).toLocaleDateString(undefined, { month: '2-digit', day: '2-digit' })}</div>
+                                                    <td rowSpan={group.length} className={`p-1 align-middle text-center border-r border-slate-200 ${dateCellClass}`}>
+                                                        <div className="font-bold whitespace-nowrap text-sm md:text-base">{new Date(r.match_date).toLocaleDateString(undefined, { month: '2-digit', day: '2-digit' })}</div>
                                                     </td>
                                                 )}
                                                 {itemIdx === 0 && (
@@ -1165,7 +1201,11 @@ export default function App() {
                                                     </td>
                                                 )}
                                                 <td className="p-1 text-center font-black text-slate-500">{r.wind}</td>
-                                                <td className="p-1 font-bold text-slate-800 whitespace-nowrap">{r.player_name}</td>
+                                                <td className="p-1 font-bold text-slate-800 whitespace-nowrap">
+                                                    {searchQuery.trim() !== '' && r.player_name.toLowerCase().includes(searchQuery.toLowerCase()) ? (
+                                                        <span className="inline-block bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">{r.player_name}</span>
+                                                    ) : r.player_name}
+                                                </td>
                                                 <td className={`p-1 font-black ${rankColor}`}>{r.rank}</td>
                                                 <td className="p-1">{r.final_score.toLocaleString()}</td>
                                                 <td className={`p-1 ${r.uma > 0 ? 'text-green-600 font-bold' : 'text-red-500 font-medium'}`}>{Number(r.uma).toFixed(1)}</td>
@@ -1185,7 +1225,8 @@ export default function App() {
                             <tr>
                                 <td colSpan="8" className="p-6 text-center text-slate-500">검색 결과가 없습니다.</td>
                             </tr>
-                        )}
+                        );
+                        })()}
                     </tbody>
                 </table>
                 </div>
