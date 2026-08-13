@@ -21,8 +21,9 @@ const fmtDateTime = (iso) => {
 // === 간단 마크업 파서: **볼드** / [red]텍스트[/red] (red|blue|green|orange|gray) ===
 const MARKUP_COLORS = { red: '#dc2626', blue: '#2563eb', green: '#16a34a', orange: '#ea580c', gray: '#64748b' };
 const COLOR_LABELS = { red: '빨강', blue: '파랑', green: '초록', orange: '주황', gray: '회색' };
-const renderMarkup = (text) => {
+const renderMarkup = (text, depth = 0) => {
     if (!text) return null;
+    if (depth > 4) return text; // 중첩 과도 방지
     const parts = [];
     let lastIndex = 0;
     let i = 0;
@@ -31,9 +32,11 @@ const renderMarkup = (text) => {
     while ((m = regex.exec(text)) !== null) {
         if (m.index > lastIndex) parts.push(<React.Fragment key={'t'+i}>{text.slice(lastIndex, m.index)}</React.Fragment>);
         if (m[1]) {
-            parts.push(<b key={'b'+i}>{m[2]}</b>);
+            // 볼드 안의 색상 태그도 재귀 처리 (**[red]x[/red]** 지원)
+            parts.push(<b key={'b'+i}>{renderMarkup(m[2], depth + 1)}</b>);
         } else if (m[3]) {
-            parts.push(<span key={'c'+i} style={{ color: MARKUP_COLORS[m[4]] }}>{m[5]}</span>);
+            // 색상 안의 볼드도 재귀 처리 ([red]**x**[/red] 지원)
+            parts.push(<span key={'c'+i} style={{ color: MARKUP_COLORS[m[4]] }}>{renderMarkup(m[5], depth + 1)}</span>);
         }
         i++;
         lastIndex = regex.lastIndex;
@@ -96,6 +99,62 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
     const [replyDraft, setReplyDraft] = useState('');
     const [replyStatus, setReplyStatus] = useState('received');
 
+    // === 답글(댓글) 스레드 — 누구나 작성 가능 ===
+    const [comments, setComments] = useState([]);
+    const [commentDraft, setCommentDraft] = useState('');
+    const [commentNickname, setCommentNickname] = useState('');
+    const commentTextareaRef = React.useRef(null);
+
+    const fetchComments = async (suggestionId) => {
+        try {
+            const res = await fetch(`/api/suggestions/${suggestionId}/comments`);
+            if (res.ok) setComments(await res.json());
+            else setComments([]);
+        } catch { setComments([]); }
+    };
+
+    const submitComment = async () => {
+        if (!detailItem) return;
+        if (!commentDraft.trim()) { alert('답글 내용을 입력해주세요.'); return; }
+        setSubmitting(true);
+        try {
+            const res = await fetch(`/api/suggestions/${detailItem.id}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+                body: JSON.stringify({ content: commentDraft.trim(), nickname: commentNickname.trim() }),
+            });
+            if (!res.ok) {
+                alert('답글 작성 실패: ' + await res.text());
+                return;
+            }
+            setCommentDraft('');
+            await fetchComments(detailItem.id);
+            await fetchList();
+        } catch (e) {
+            alert('서버 통신 실패: ' + e.message);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const deleteComment = async (cid) => {
+        if (!detailItem) return;
+        if (!window.confirm('이 답글을 삭제하시겠습니까?')) return;
+        setSubmitting(true);
+        try {
+            const res = await fetch(`/api/suggestions/${detailItem.id}/comments/${cid}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${authToken}` },
+            });
+            if (!res.ok) { alert('삭제 실패: ' + await res.text()); return; }
+            await fetchComments(detailItem.id);
+        } catch (e) {
+            alert('서버 통신 실패: ' + e.message);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const fetchList = async () => {
         setLoading(true);
         setError('');
@@ -150,19 +209,21 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
     };
 
     const openDetail = async (item) => {
+        setComments([]);
+        setCommentDraft('');
+        setCommentNickname(userLoginId || '');
+        fetchComments(item.id);
         // 최신 데이터로 다시 조회 (다른 사람이 답글 단 경우 반영)
         try {
             const res = await fetch(`/api/suggestions/${item.id}`);
             if (res.ok) {
                 const fresh = await res.json();
                 setDetailItem(fresh);
-                setReplyDraft(fresh.admin_reply || '');
                 setReplyStatus(fresh.status === 'pending' ? 'received' : fresh.status);
                 return;
             }
         } catch {}
         setDetailItem(item);
-        setReplyDraft(item.admin_reply || '');
         setReplyStatus(item.status === 'pending' ? 'received' : item.status);
     };
 
@@ -343,7 +404,8 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
             <div className="space-y-2">
                 {items.map(it => {
                     const sInfo = STATUS_INFO[it.status] || STATUS_INFO.pending;
-                    const hasReply = !!it.admin_reply;
+                    const hasReply = (parseInt(it.comment_count) || 0) > 0 || !!it.admin_reply;
+                    const replyCount = parseInt(it.comment_count) || 0;
                     return (
                         <button
                             key={it.id}
@@ -356,7 +418,7 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
                                         <span className={'text-[10px] font-bold border rounded px-1.5 py-0.5 ' + sInfo.badge}>{sInfo.label}</span>
                                         {it.category === 'update' && <span className="text-[10px] font-bold border border-blue-300 bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 inline-flex items-center gap-1"><CampaignOutlinedIcon sx={{ fontSize: 12 }} />업데이트</span>}
                                         {it.category === 'inquiry' && <span className="text-[10px] font-bold border border-orange-300 bg-orange-100 text-orange-700 rounded px-1.5 py-0.5 inline-flex items-center gap-1"><MailOutlineRoundedIcon sx={{ fontSize: 12 }} />문의</span>}
-                                        {hasReply && <span className="text-[10px] font-bold text-green-700">✓ 답글</span>}
+                                        {hasReply && <span className="text-[10px] font-bold text-green-700">✓ 답글{replyCount > 0 ? ` ${replyCount}` : ''}</span>}
                                         <span className="font-bold text-slate-800 truncate">{it.title}</span>
                                     </div>
                                     <div className="text-xs text-slate-500">
@@ -469,31 +531,74 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
                                     {renderMarkup(detailItem.content)}
                                 </div>
 
-                                {/* 관리자 응답 (있을 때만 표시) */}
-                                {detailItem.admin_reply && (
-                                    <div className="border-l-4 border-orange-400 bg-orange-50/50 p-3 rounded-r-lg">
-                                        <div className="text-xs font-bold text-orange-700 mb-1 flex items-center justify-between">
-                                            <span>
-                                                🛠 관리자 응답
-                                                <span className="ml-2 font-normal text-orange-500">
-                                                    {detailItem.admin_reply_by || 'admin'} · {fmtDateTime(detailItem.admin_reply_at)}
-                                                </span>
-                                            </span>
-                                            {isAdmin && (
-                                                <button
-                                                    type="button"
-                                                    onClick={submitDeleteReply}
-                                                    disabled={submitting}
-                                                    className="text-[11px] text-rose-600 hover:bg-rose-100 active:bg-rose-200 rounded px-1.5 py-0.5 disabled:opacity-60"
-                                                    title="답글 삭제 (글은 유지)"
-                                                >🗑 답글 삭제</button>
-                                            )}
-                                        </div>
-                                        <div className="text-sm text-slate-800 whitespace-pre-wrap break-words">{renderMarkup(detailItem.admin_reply)}</div>
+                                {/* 답글 스레드 (관리자/일반 모두) */}
+                                {comments.length > 0 && (
+                                    <div className="space-y-2">
+                                        <div className="text-xs font-bold text-slate-600">💬 답글 {comments.length}개</div>
+                                        {comments.map(c => {
+                                            const isAdminComment = c.author_role === 'admin';
+                                            return (
+                                                <div
+                                                    key={c.id}
+                                                    className={isAdminComment
+                                                        ? 'border-l-4 border-orange-400 bg-orange-50/50 p-3 rounded-r-lg'
+                                                        : 'border-l-4 border-slate-300 bg-slate-50 p-3 rounded-r-lg'}
+                                                >
+                                                    <div className={'text-xs font-bold mb-1 flex items-center justify-between ' + (isAdminComment ? 'text-orange-700' : 'text-slate-600')}>
+                                                        <span>
+                                                            {isAdminComment ? '🛠 ' : ''}{c.author_name}
+                                                            {isAdminComment && <span className="ml-1 text-[10px] px-1 py-0.5 bg-orange-200 text-orange-800 rounded">관리자</span>}
+                                                            <span className={'ml-2 font-normal ' + (isAdminComment ? 'text-orange-500' : 'text-slate-400')}>{fmtDateTime(c.created_at)}</span>
+                                                        </span>
+                                                        {isAdmin && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => deleteComment(c.id)}
+                                                                disabled={submitting}
+                                                                className="text-[11px] text-rose-600 hover:bg-rose-100 active:bg-rose-200 rounded px-1.5 py-0.5 disabled:opacity-60"
+                                                            >🗑</button>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-sm text-slate-800 whitespace-pre-wrap break-words">{renderMarkup(c.content)}</div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
 
-                                {/* 관리자 화면: 답글 작성 + 상태 변경 + 삭제 */}
+                                {/* 답글 작성 — 로그인한 누구나 (게스트 포함) */}
+                                <div className="border border-slate-200 rounded-lg p-3 space-y-2 bg-slate-50/50">
+                                    <div className="text-xs font-bold text-slate-600">✍ 답글 작성</div>
+                                    <input
+                                        type="text"
+                                        maxLength={50}
+                                        value={commentNickname}
+                                        onChange={e => setCommentNickname(e.target.value)}
+                                        placeholder="닉네임"
+                                        className="w-full md:w-48 px-3 py-1.5 border border-slate-300 rounded-lg bg-white text-sm"
+                                    />
+                                    <MarkupToolbar textareaRef={commentTextareaRef} value={commentDraft} onChange={setCommentDraft} />
+                                    <textarea
+                                        ref={commentTextareaRef}
+                                        maxLength={5000}
+                                        value={commentDraft}
+                                        onChange={e => setCommentDraft(e.target.value)}
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg min-h-[80px] resize-y bg-white text-sm"
+                                        placeholder="답글 내용을 입력하세요. **볼드** / [red]색상[/red] 가능"
+                                    />
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[10px] text-slate-400">{commentDraft.length}/5000</span>
+                                        <button
+                                            onClick={submitComment}
+                                            disabled={submitting}
+                                            className="px-4 py-2 bg-orange-500 text-white rounded-lg font-bold text-sm hover:bg-orange-600 disabled:opacity-60"
+                                        >
+                                            {submitting ? '등록 중...' : '답글 등록'}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* 관리자 도구: 상태 변경 + 글 삭제 */}
                                 {isAdmin && (
                                     <div className="border border-slate-200 rounded-lg p-3 space-y-3 bg-slate-50/50">
                                         <div className="text-xs font-bold text-slate-600">🛠 관리자 도구</div>
@@ -519,43 +624,20 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
                                             </div>
                                         </div>
 
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-600">답글</label>
-                                            <div className="mt-1">
-                                                <MarkupToolbar textareaRef={replyTextareaRef} value={replyDraft} onChange={setReplyDraft} />
-                                            </div>
-                                            <textarea
-                                                ref={replyTextareaRef}
-                                                maxLength={5000}
-                                                value={replyDraft}
-                                                onChange={e => setReplyDraft(e.target.value)}
-                                                className="w-full px-3 py-2 border border-slate-300 rounded-lg min-h-[100px] resize-y bg-white"
-                                                placeholder="답글 내용을 입력하세요. 볼드/색상 가능"
-                                            />
-                                            <div className="text-[10px] text-slate-400 text-right mt-0.5">{replyDraft.length}/5000</div>
-                                        </div>
-
                                         <div className="flex flex-wrap gap-2">
                                             <button
                                                 onClick={submitDelete}
                                                 disabled={submitting}
                                                 className="px-3 py-2 bg-rose-100 text-rose-700 rounded-lg font-bold text-sm hover:bg-rose-200 disabled:opacity-60"
                                             >
-                                                🗑 삭제
+                                                🗑 글 삭제
                                             </button>
                                             <button
                                                 onClick={() => submitStatusOnly(replyStatus)}
                                                 disabled={submitting || replyStatus === detailItem.status}
-                                                className="px-3 py-2 bg-slate-200 text-slate-700 rounded-lg font-bold text-sm hover:bg-slate-300 disabled:opacity-60"
+                                                className="flex-1 px-3 py-2 bg-slate-200 text-slate-700 rounded-lg font-bold text-sm hover:bg-slate-300 disabled:opacity-60"
                                             >
-                                                상태만 저장
-                                            </button>
-                                            <button
-                                                onClick={submitReply}
-                                                disabled={submitting}
-                                                className="flex-1 px-3 py-2 bg-orange-500 text-white rounded-lg font-bold text-sm hover:bg-orange-600 disabled:opacity-60"
-                                            >
-                                                {submitting ? '저장 중...' : '답글 저장'}
+                                                상태 저장
                                             </button>
                                         </div>
                                     </div>
