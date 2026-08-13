@@ -599,11 +599,12 @@ app.get('/api/suggestions', async (req, res) => {
     }
     const where = conds.length ? ('WHERE ' + conds.join(' AND ')) : '';
     const result = await pool.query(
-      `SELECT id, nickname, title, content, status, category,
-              created_at, updated_at,
-              admin_reply, admin_reply_by, admin_reply_at, created_by
-         FROM suggestions ${where}
-        ORDER BY created_at DESC
+      `SELECT s.id, s.nickname, s.title, s.content, s.status, s.category,
+              s.created_at, s.updated_at,
+              s.admin_reply, s.admin_reply_by, s.admin_reply_at, s.created_by,
+              (SELECT COUNT(*) FROM suggestion_comments c WHERE c.suggestion_id = s.id)::int AS comment_count
+         FROM suggestions s ${where}
+        ORDER BY s.created_at DESC
         LIMIT $1 OFFSET $2`,
       params
     );
@@ -715,6 +716,54 @@ app.delete('/api/suggestions/:id/reply', checkAuth, checkAdmin, async (req, res)
     );
     if (result.rows.length === 0) return res.status(404).send('Not found');
     res.json(result.rows[0]);
+  } catch (err) { res.status(500).send(err.toString()); }
+});
+
+// ===== 답글(댓글) 스레드 — 로그인한 누구나 작성 가능 =====
+app.get('/api/suggestions/:id/comments', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (!id) return res.status(400).send('Invalid id');
+    const result = await pool.query(
+      `SELECT id, suggestion_id, author_name, author_role, content, created_at
+         FROM suggestion_comments
+        WHERE suggestion_id = $1
+        ORDER BY created_at ASC, id ASC`,
+      [id]
+    );
+    res.json(result.rows);
+  } catch (err) { res.status(500).send(err.toString()); }
+});
+
+app.post('/api/suggestions/:id/comments', checkAuth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (!id) return res.status(400).send('Invalid id');
+    const { content, nickname } = req.body;
+    if (!content || !content.trim()) return res.status(400).send('내용을 입력해주세요.');
+    if (content.length > 5000) return res.status(400).send('내용이 너무 깁니다 (5000자 제한).');
+    const exists = await pool.query('SELECT id FROM suggestions WHERE id = $1', [id]);
+    if (exists.rows.length === 0) return res.status(404).send('Not found');
+    const authorName = (nickname && nickname.trim()) || req.user?.id || 'guest';
+    const authorRole = req.user?.role === 'admin' ? 'admin' : 'user';
+    const result = await pool.query(
+      `INSERT INTO suggestion_comments (suggestion_id, author_name, author_role, content)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, suggestion_id, author_name, author_role, content, created_at`,
+      [id, authorName.slice(0, 50), authorRole, content.trim()]
+    );
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).send(err.toString()); }
+});
+
+// 답글 삭제 (관리자만)
+app.delete('/api/suggestions/:id/comments/:cid', checkAuth, checkAdmin, async (req, res) => {
+  try {
+    const cid = parseInt(req.params.cid);
+    if (!cid) return res.status(400).send('Invalid comment id');
+    const result = await pool.query('DELETE FROM suggestion_comments WHERE id = $1 RETURNING id', [cid]);
+    if (result.rows.length === 0) return res.status(404).send('Not found');
+    res.json({ success: true, id: cid });
   } catch (err) { res.status(500).send(err.toString()); }
 });
 
