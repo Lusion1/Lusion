@@ -24,8 +24,9 @@ function computeNextHandMeta(hands, multiRonMode = false) {
         return { hand_number: 1, hand_wind: '동', hand_round_num: 1, honba: 0 };
     }
     const last = hands[hands.length - 1];
-    // 더블론 모드 + 직전 ron 이면 같은 hand 유지 (다음 화료자 카드 탭 대기)
-    if (multiRonMode && last.win_type === 'ron') {
+    // 더블론 모드 + 직전 ron 이 "더블론 모드에서 입력된 론(_multiRon)" 일 때만 같은 hand 유지
+    // (이미 끝난 이전 국의 일반 론 때문에 이전 국으로 되돌아가는 버그 방지)
+    if (multiRonMode && last.win_type === 'ron' && last._multiRon) {
         return {
             hand_number: last.hand_number,
             hand_wind: last.hand_wind,
@@ -103,6 +104,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
     const [activeYakuGroup, setActiveYakuGroup] = useState('1판');
     const [yakuConflictMsg, setYakuConflictMsg] = useState('');
     const [multiRonMode, setMultiRonMode] = useState(false);
+    const [redoStack, setRedoStack] = useState([]); // ↶ 무르기 로 취소한 기록 보관 (↷ 되살리기용)
     const [pendingRiichi, setPendingRiichi] = useState({ e: false, s: false, w: false, n: false });
     const [suuchaConfirm, setSuuchaConfirm] = useState(false);
     const [showFuGuide, setShowFuGuide] = useState(false); // 부수 계산 안내 펼침 상태
@@ -248,7 +250,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         if (multiRonMode && winnerWind && hands.length > 0) {
             const last = hands[hands.length - 1];
             const sameMeta = last.hand_wind === meta.hand_wind && last.hand_round_num === meta.hand_round_num && (last.honba || 0) === (meta.honba || 0);
-            if (sameMeta && last.win_type === 'ron') {
+            if (sameMeta && last.win_type === 'ron' && last._multiRon) {
                 handNum = last.hand_number;
                 lockedDealIn = last.deal_in_name;
                 isMultiRon = true;
@@ -321,6 +323,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             riichi_w: abortionType === 'suucha_riichi',
             riichi_n: abortionType === 'suucha_riichi',
         }]);
+        setRedoStack([]);
         if (abortionType === 'suucha_riichi') {
             setPendingRiichi({ e: false, s: false, w: false, n: false });
         }
@@ -355,6 +358,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             nagashi_w: seat.wind === '서',
             nagashi_n: seat.wind === '북',
         }]);
+        setRedoStack([]);
     };
 
     const recordChombo = () => {
@@ -378,6 +382,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             winner_name: null,
             deal_in_name: null,
         }]);
+        setRedoStack([]);
     };
 
     // === 지각 패널티 ===
@@ -435,13 +440,24 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             }));
             return [...prev, ...newHands];
         });
+        setRedoStack([]);
     };
 
     const undoLastHand = () => {
         if (hands.length === 0) return;
         if (window.confirm('마지막 국 기록을 되돌리시겠습니까?')) {
+            // 무른 기록을 redo 스택에 보관 → ↷ 되살리기 가능
+            setRedoStack(prev => [...prev, hands[hands.length - 1]]);
             setHands(prev => prev.slice(0, -1));
         }
+    };
+
+    // 무르기 취소 (redo): 마지막으로 무른 기록을 되살림
+    const redoLastHand = () => {
+        if (redoStack.length === 0) return;
+        const restored = redoStack[redoStack.length - 1];
+        setRedoStack(prev => prev.slice(0, -1));
+        setHands(prev => [...prev, restored]);
     };
 
     // 기존 hand 를 모달에 불러와 수정 모드로 진입
@@ -572,8 +588,12 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                     <input type="checkbox" className="sr-only" checked={multiRonMode} onChange={e => {
                         if (e.target.checked && hands.length > 0) {
                             const last = hands[hands.length - 1];
-                            if (last.win_type === 'ron') {
-                                if (!window.confirm('⚠ 직전 hand 가 화료(ron) 입니다.\n\n더블론은 첫 화료자 입력 전에 모드를 켜야 자리별 리치/점수가 정확히 기록됩니다.\n\n[권장] 취소 → [↶ 무르기] 로 직전 hand 취소 → 더블론 ON → 처음부터 다시 입력\n\n그래도 이대로 모드만 켜시려면 [확인].')) return;
+                            if (last.win_type === 'ron' && !last._multiRon) {
+                                // 직전 론을 더블론 첫 화료자로 이어서 묶을지 선택
+                                if (window.confirm('직전 화료(론)를 더블론의 첫 화료자로 이어서 묶을까요?\n\n[확인] 직전 론과 같은 국으로 묶어서 다음 화료자 입력\n[취소] 묶지 않고 모드만 켬 (다음 국부터 더블론 대기)\n\n※ 그 국에 리치 선언이 있었다면 [↶ 무르기] 후 더블론 ON → 처음부터 입력하는 것이 정확합니다.')) {
+                                    // 직전 론에 더블론 태그를 부여해 같은 국으로 묶음
+                                    setHands(prev => prev.map((h, i) => i === prev.length - 1 ? { ...h, _multiRon: true } : h));
+                                }
                             }
                         }
                         setMultiRonMode(e.target.checked);
@@ -584,6 +604,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                 <div className="flex gap-2">
                     <button onClick={() => openHand(null)} className="flex-1 py-3 bg-slate-200 text-slate-700 rounded-lg font-bold">유국</button>
                     <button onClick={undoLastHand} disabled={hands.length === 0} className={'flex-1 py-3 rounded-lg font-bold ' + (hands.length ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-400')}>↶ 무르기</button>
+                    <button onClick={redoLastHand} disabled={redoStack.length === 0} className={'flex-1 py-3 rounded-lg font-bold ' + (redoStack.length ? 'bg-sky-100 text-sky-800' : 'bg-slate-100 text-slate-400')} title="마지막으로 무른 기록 되살리기">↷ 되살리기{redoStack.length > 0 ? ` (${redoStack.length})` : ''}</button>
                 </div>
 
                 <details className="border border-slate-200 rounded-lg">
@@ -839,7 +860,11 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         if (editIdx != null) {
             setHands(prev => prev.map((h, i) => i === editIdx ? { ...d } : h));
         } else {
-            setHands(prev => [...prev, { ...d }]);
+            // 더블론 모드에서 입력된 론에 태그 부여 (다음 화료자를 같은 국으로 묶는 기준)
+            const newHand = { ...d };
+            if (multiRonMode && d.win_type === 'ron') newHand._multiRon = true;
+            setHands(prev => [...prev, newHand]);
+            setRedoStack([]); // 새 기록 추가 → 되살리기 이력 초기화
             // 더블론 모드의 ron 입력은 같은 hand 의 다음 화료자가 올 수 있으므로 임시 리치 유지
             // 그 외(단일 화료/유국/더블론 OFF)는 다음 hand 로 넘어가므로 리셋
             if (!(multiRonMode && d.win_type === 'ron')) {
