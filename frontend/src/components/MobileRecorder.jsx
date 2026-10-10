@@ -286,6 +286,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                 //   리치 자리는 후로 불가(=멘젠 한정 役)이므로 자동 멘젠(false)
                 //   그 외에는 null(미선택) — 사용자가 명시적으로 멘젠/후로 선택해야 함
                 is_furo: (winnerWind && pendingRiichi[WIND_TO_FIELD[winnerWind]]) ? false : null,
+                pao_player: null, // 책임지불 대상자 (대삼원/대사희 선택 시에만 노출)
                 _winnerWind: winnerWind,
             }
         });
@@ -681,7 +682,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                                     if (h.win_type === 'abortion') return `도중유국 (${({kyuushu:'구종구패',sufon:'사풍연타',suucha_riichi:'사가리치',suukantsu:'사깡산료'})[h.abortion_type] || '?'}${h.abortion_player ? ' · ' + h.abortion_player : ''})`;
                                                     if (h.win_type === 'chombo') return `촌보 (${h.chombo_player || '?'})`;
                                                     if (h.win_type === 'late_penalty') return `지각 (${h.late_player || '?'}: −${((h.late_penalty || 0) * 3).toLocaleString()})`;
-                                                    return `${h.winner_name} ${h.win_type === 'tsumo' ? '쯔모' : '론(' + (h.deal_in_name || '?') + ')'}`;
+                                                    return `${h.winner_name} ${h.win_type === 'tsumo' ? '쯔모' : '론(' + (h.deal_in_name || '?') + ')'}${h.pao_player ? ' ⚖' + h.pao_player : ''}`;
                                                 })()}
                                                 {deltaText && <span className={'ml-1 font-bold ' + deltaColor}>{deltaText}</span>}
                                             </span>
@@ -774,6 +775,14 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
         }
         if (!('score_class' in patch)) {
             if (bestClass) merged.score_class = bestClass;
+        }
+
+        // 책임지불 대상 役(대삼원/대사희)이 해제되면 책임지불 지정도 자동 해제
+        if ('yaku_list' in patch) {
+            const ylChk = merged.yaku_list || [];
+            if (merged.pao_player && !ylChk.includes('daisangen') && !ylChk.includes('daisuushii')) {
+                merged.pao_player = null;
+            }
         }
 
         const triggerKeys = ['yaku_list', 'dora_count', 'ura_dora_count', 'is_furo', 'win_type', 'score_class', winnerWind ? ('riichi_' + WIND_TO_FIELD[winnerWind]) : ''];
@@ -1089,6 +1098,40 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                     </div>
                                 )}
 
+                                {/* 책임지불 — 대삼원/대사희 선택 시에만 표시 */}
+                                {(() => {
+                                    const yl = d.yaku_list || [];
+                                    if (!yl.includes('daisangen') && !yl.includes('daisuushii')) return null;
+                                    return (
+                                        <div>
+                                            <div className="text-sm font-bold text-slate-700 mb-2">
+                                                ⚖ 책임지불
+                                                <span className="text-[10px] font-normal text-slate-400 ml-1">(확정패를 울려준 사람 · 해당 없으면 '없음')</span>
+                                            </div>
+                                            <div className="grid grid-cols-4 gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => updateDraft({ pao_player: null })}
+                                                    className={'py-3 rounded-lg font-bold border-2 text-sm ' + (!d.pao_player ? 'bg-slate-700 text-white border-slate-800' : 'bg-white text-slate-700 border-slate-200')}
+                                                >없음</button>
+                                                {seats.filter(s => s.name && s.name !== winnerName).map(s => (
+                                                    <button
+                                                        key={s.wind}
+                                                        type="button"
+                                                        onClick={() => updateDraft({ pao_player: s.name })}
+                                                        className={'py-3 rounded-lg font-bold border-2 text-sm ' + (d.pao_player === s.name ? 'bg-violet-500 text-white border-violet-600' : 'bg-white text-slate-700 border-slate-200')}
+                                                    >
+                                                        {s.wind} {s.name}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <div className="text-[10px] text-slate-400 mt-1">
+                                                쯔모: 책임자 전액 부담 · 론: 방총자·책임자 반반 (본장료는 방총자)
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
                                 <div>
                                     <div className="text-sm font-bold text-slate-700 mb-2">리치 (시작 자리 기준 · −1000)</div>
                                     <div className="grid grid-cols-4 gap-2">
@@ -1288,6 +1331,7 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                         deal_in_name: h.win_type === 'ron' ? h.deal_in_name : null,
                         abortion_type: h.win_type === 'abortion' ? h.abortion_type : null,
                         abortion_player: h.win_type === 'abortion' ? (h.abortion_player || null) : null,
+                        pao_player: (h.win_type === 'tsumo' || h.win_type === 'ron') ? (h.pao_player || null) : null,
                         chombo_player: h.win_type === 'chombo' ? h.chombo_player : null,
                         late_player: h.win_type === 'late_penalty' ? h.late_player : null,
                         late_penalty: h.win_type === 'late_penalty' ? (parseInt(h.late_penalty) || null) : null,
