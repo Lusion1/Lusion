@@ -78,6 +78,17 @@ export default function App() {
     const [p1, setP1] = useState('');
     const [p2, setP2] = useState('');
     const [rivalData, setRivalData] = useState(null);
+    // 전체 상대전적 (1명 vs 전원)
+    const [allVsPlayer, setAllVsPlayer] = useState('');
+    const [allVsData, setAllVsData] = useState(null);
+
+    const fetchAllVs = (name) => {
+        if (!name) { setAllVsData(null); return; }
+        fetch(`${API_BASE}/rival-all?player=${encodeURIComponent(name)}&year=${globalYear}`)
+            .then(r => r.ok ? r.json() : [])
+            .then(d => setAllVsData(Array.isArray(d) ? d : []))
+            .catch(() => setAllVsData([]));
+    };
 
     const [records, setRecords] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -208,6 +219,7 @@ export default function App() {
     // Re-fetch rival comparison if globalYear changes
     useEffect(() => {
         if (p1 && p2) handleRivalCompare();
+        if (allVsPlayer) fetchAllVs(allVsPlayer);
     }, [globalYear]);
 
     const calcRankAndUma = (players) => {
@@ -454,6 +466,11 @@ export default function App() {
             { title: '🀫 멘젠의 장인', item: '멘젠율 (화료 중)', key: 'menzen_rate', sort: 'desc', format: v => v == null ? '-' : `${(v * 100).toFixed(1)}%` },
             { title: '🥊 강펀치', item: '평균 화료금액', key: 'avg_win_score', sort: 'desc', format: v => v == null ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }) },
             { title: '🌸 낭만폭발', item: '역만 달성', key: 'yakuman_total', sort: 'desc', nonZero: true, format: v => (parseInt(v) || 0) > 0 ? `${v}회` : '-' },
+            // 자리별 평균 순위 (해당 자리 착석 수가 기준 판수의 1/4 이상인 멤버만)
+            { title: '🀀 동방불패', item: '동 자리 평균 순위', key: 'avg_rank_east',  sort: 'asc', seatCountKey: 'count_east',  format: v => v == null ? '-' : Number(v).toFixed(2) },
+            { title: '🀁 남방염제', item: '남 자리 평균 순위', key: 'avg_rank_south', sort: 'asc', seatCountKey: 'count_south', format: v => v == null ? '-' : Number(v).toFixed(2) },
+            { title: '🀂 서량맹호', item: '서 자리 평균 순위', key: 'avg_rank_west',  sort: 'asc', seatCountKey: 'count_west',  format: v => v == null ? '-' : Number(v).toFixed(2) },
+            { title: '🀃 북부대공', item: '북 자리 평균 순위', key: 'avg_rank_north', sort: 'asc', seatCountKey: 'count_north', format: v => v == null ? '-' : Number(v).toFixed(2) },
         ];
 
         const minMatchesInfo = (() => {
@@ -474,10 +491,15 @@ export default function App() {
         })();
         const minMatches = minMatchesInfo.min;
 
-        const getSortedForCategory = (key, direction, nonZero = false) => {
+        const getSortedForCategory = (key, direction, nonZero = false, seatCountKey = null) => {
             // statsWithHand: stats + handStats 병합본 (avg_win_score, yakuman_total 등 포함)
             let list = key === 'total_matches' ? statsWithHand : statsWithHand.filter(s => s.total_matches >= minMatches);
             if (nonZero) list = list.filter(s => (Number(s[key]) || 0) > 0); // 0회는 순위 제외 (낭만폭발 등)
+            if (seatCountKey) {
+                // 자리별 카테고리: 그 자리에 최소 (기준 판수 ÷ 4) 이상 앉은 멤버만
+                const seatMin = Math.max(1, Math.ceil(minMatches / 4));
+                list = list.filter(s => (Number(s[seatCountKey]) || 0) >= seatMin);
+            }
             if (list.length === 0) return [];
 
             return [...list].sort((a, b) => {
@@ -516,7 +538,7 @@ export default function App() {
                     </thead>
                     <tbody>
                         {dashboardCategories.map((cat, idx) => {
-                            const top3 = getSortedForCategory(cat.key, cat.sort, !!cat.nonZero);
+                            const top3 = getSortedForCategory(cat.key, cat.sort, !!cat.nonZero, cat.seatCountKey || null);
                             return (
                                 <tr key={idx} className="border-b transition hover:bg-slate-50 border-slate-100">
                                     <td className="sticky-column w-[124px] min-w-[124px] max-w-[124px] px-3 py-2.5 font-bold text-slate-800 border-r border-slate-200 bg-slate-50 text-left whitespace-normal leading-snug">{cat.title}</td>
@@ -897,6 +919,62 @@ export default function App() {
                 </div>
             </div>
 
+            {/* 전체 상대전적: 1명 선택 → 모든 상대와의 전적 */}
+            <div className="bg-white shadow-lg rounded-xl p-6">
+                <h2 className="text-xl font-bold mb-4 text-slate-800 border-b pb-2">🗺 전체 상대전적 <span className="text-sm font-normal text-slate-400">(1명 선택 → 모든 멤버와의 전적)</span></h2>
+                <div className="flex flex-col md:flex-row gap-3 mb-4">
+                    <select
+                        value={allVsPlayer}
+                        onChange={(e) => { setAllVsPlayer(e.target.value); fetchAllVs(e.target.value); }}
+                        className="border-2 border-slate-200 p-3 rounded-lg flex-1 md:max-w-xs bg-slate-50 focus:border-orange-500 focus:outline-none transition"
+                    >
+                        <option value="">멤버 선택...</option>
+                        {stats.map(s => <option key={s.player_name} value={s.player_name}>{s.player_name}</option>)}
+                    </select>
+                </div>
+                {allVsData && allVsData.length > 0 && (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-center border-collapse whitespace-nowrap">
+                            <thead>
+                                <tr className="bg-slate-900 text-white">
+                                    <th className="p-2 text-left pl-4">상대</th>
+                                    <th className="p-2">함께한 판수</th>
+                                    <th className="p-2 text-green-300">승</th>
+                                    <th className="p-2 text-red-300">패</th>
+                                    <th className="p-2">승률</th>
+                                    <th className="p-2 text-left">우열</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {allVsData.map(r => {
+                                    const total = (r.wins || 0) + (r.losses || 0);
+                                    const rate = total > 0 ? (r.wins / total) : 0;
+                                    const pct = (rate * 100).toFixed(1);
+                                    return (
+                                        <tr key={r.opponent} className="border-b border-slate-100 hover:bg-slate-50 transition">
+                                            <td className="p-2 text-left pl-4 font-bold text-slate-800">{r.opponent}</td>
+                                            <td className="p-2 text-slate-600">{r.matches}판</td>
+                                            <td className="p-2 font-bold text-green-600">{r.wins}</td>
+                                            <td className="p-2 font-bold text-red-500">{r.losses}</td>
+                                            <td className={`p-2 font-black ${rate >= 0.55 ? 'text-green-600' : rate <= 0.45 ? 'text-red-500' : 'text-slate-700'}`}>{pct}%</td>
+                                            <td className="p-2 text-left">
+                                                <div className="w-28 bg-red-100 rounded-full h-2 overflow-hidden inline-block align-middle">
+                                                    <div className="bg-green-500 h-2" style={{ width: `${pct}%` }}></div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                        <div className="text-[11px] text-slate-400 mt-2">* 승/패 = 같은 판에서 상대보다 높은/낮은 순위. 판수 많은 순 정렬.</div>
+                    </div>
+                )}
+                {allVsData && allVsData.length === 0 && allVsPlayer && (
+                    <div className="text-sm text-slate-500 py-4 text-center">함께 플레이한 기록이 없습니다.</div>
+                )}
+            </div>
+
             {rivalData && rivalData.headToHead && (
                 <div className="space-y-6">
                     {/* Section 3: Compatibility Flag */}
@@ -905,6 +983,9 @@ export default function App() {
                         <h3 className="text-sm font-bold tracking-widest text-orange-400 mb-2">MATCH COMPATIBILITY</h3>
                         <div className="text-4xl font-black mb-4">{rivalData.headToHead.title}</div>
                         <p className="text-lg text-slate-300">{rivalData.headToHead.desc}</p>
+                        {rivalData.headToHead.criteria && (
+                            <p className="text-xs text-slate-400 mt-2">📏 판정 기준: {rivalData.headToHead.criteria}</p>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
