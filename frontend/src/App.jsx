@@ -1676,6 +1676,7 @@ export default function App() {
                                                         // 도라·우라도라 통합 표시 (옛 데이터의 ura 값도 합산)
                                                         const doraTotal = (parseInt(h.dora_count) || 0) + (parseInt(h.ura_dora_count) || 0);
                                                         if (doraTotal > 0) extras.push(`도라${doraTotal}`);
+                                                        if (h.pao_player) extras.push(`책임지불: ${h.pao_player}`);
                                                         return (
                                                             <div key={idx} className="text-sm text-slate-700">
                                                                 <span className="font-bold">{h.winner_name}</span> {winType}
