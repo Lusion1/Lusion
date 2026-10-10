@@ -312,14 +312,32 @@ export function calcRoundResult(players, hands, opts = {}) {
                         honba: (isMulti && gh.winner_name !== riichiReceiver) ? 0 : (parseInt(gh.honba) || 0),
                     });
 
+                    // === 책임지불 (대삼원/대사희 확정패를 울려준 사람) ===
+                    //   쯔모: 책임자 전액 부담 (본장료 포함)
+                    //   론  : 기본 점수는 방총자·책임자 반반, 본장료는 방총자 부담 (100점 단위 유지)
+                    const paoName = (gh.pao_player && gh.pao_player !== gh.winner_name
+                        && players.some(p => p && p.name === gh.pao_player))
+                        ? gh.pao_player : null;
+
                     if (gh.win_type === 'ron') {
                         // 화료자 = +total (리치봉은 별도)
                         if (gh.winner_name) scores[gh.winner_name] = (scores[gh.winner_name] || 0) + calc.total;
-                        // 방총자 차감
-                        if (dealInName) scores[dealInName] = (scores[dealInName] || 0) - calc.total;
+                        if (paoName && dealInName && paoName !== dealInName) {
+                            const honbaUsed = (isMulti && gh.winner_name !== riichiReceiver) ? 0 : (parseInt(gh.honba) || 0);
+                            const honbaPart = honbaUsed * 300;
+                            const half = (calc.total - honbaPart) / 2;
+                            scores[dealInName] = (scores[dealInName] || 0) - half - honbaPart;
+                            scores[paoName]    = (scores[paoName]    || 0) - half;
+                        } else if (dealInName) {
+                            // 책임자 미지정 또는 방총자 = 책임자 → 방총자 전액 (기존과 동일)
+                            scores[dealInName] = (scores[dealInName] || 0) - calc.total;
+                        }
                     } else { // tsumo (단일만 가능)
                         if (gh.winner_name) scores[gh.winner_name] = (scores[gh.winner_name] || 0) + calc.total;
-                        if (ghDealerWinner) {
+                        if (paoName) {
+                            // 책임자 전액 부담
+                            scores[paoName] = (scores[paoName] || 0) - calc.total;
+                        } else if (ghDealerWinner) {
                             for (const p of players) {
                                 if (!p || !p.name || p.name === gh.winner_name) continue;
                                 scores[p.name] = (scores[p.name] || 0) - calc.fromNonDealer;
