@@ -115,6 +115,7 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
 
     const submitComment = async () => {
         if (!detailItem) return;
+        if (!commentNickname.trim()) { alert('닉네임을 입력해주세요.'); return; }
         if (!commentDraft.trim()) { alert('답글 내용을 입력해주세요.'); return; }
         setSubmitting(true);
         try {
@@ -176,8 +177,8 @@ export default function SuggestionBoard({ authToken, userRole, userLoginId }) {
 
     useEffect(() => { fetchList(); /* eslint-disable-next-line */ }, [filterStatus, filterCategory]);
 
-    // 작성 모달 열 때 닉네임 기본값 = 로그인 ID (관리자는 '관리자'로 표시)
-    const defaultNickname = isAdmin ? '관리자' : (userLoginId || '');
+    // 닉네임 기본값: 관리자는 '관리자', 일반 유저는 빈칸 (직접 입력 필수)
+    const defaultNickname = isAdmin ? '관리자' : '';
     const openWrite = () => {
         setWriteForm({ nickname: defaultNickname, title: '', content: '', category: 'inquiry' });
         setWriteModal(true);
