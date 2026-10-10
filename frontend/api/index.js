@@ -280,7 +280,7 @@ async function insertHands(client, hands, matchRound, matchDate) {
        abortion_type, chombo_player,
        nagashi_e, nagashi_s, nagashi_w, nagashi_n,
        multi_index, is_furo,
-       late_player, late_penalty, abortion_player)
+       late_player, late_penalty, abortion_player, pao_player)
     VALUES ($1,  $2,  $3,  $4,  $5,
             $6,  $7,  $8,  $9,
             $10, $11, $12, $13, $14,
@@ -292,7 +292,7 @@ async function insertHands(client, hands, matchRound, matchDate) {
             $33, $34,
             $35, $36, $37, $38,
             $39, $40,
-            $41, $42, $43)
+            $41, $42, $43, $44)
   `;
   const toIntOrNull = (v) => (v == null || v === '' ? null : parseInt(v));
   const toBool = (v) => v === true || v === 'true';
@@ -342,6 +342,7 @@ async function insertHands(client, hands, matchRound, matchDate) {
       h.win_type === 'late_penalty' ? (h.late_player || null) : null, // 지각자
       h.win_type === 'late_penalty' ? toIntOrNull(h.late_penalty) : null, // 1명당 분배 점수
       h.win_type === 'abortion' ? (h.abortion_player || null) : null, // 도중유국 선언자 (구종구패 등)
+      (h.win_type === 'tsumo' || h.win_type === 'ron') ? (h.pao_player || null) : null, // 책임지불 대상자
     ]);
   }
 }
@@ -425,7 +426,7 @@ app.get('/api/records/:round/hands', async (req, res) => {
               riichi_e, riichi_s, riichi_w, riichi_n,
               abortion_type, chombo_player,
               nagashi_e, nagashi_s, nagashi_w, nagashi_n,
-              is_furo, late_player, late_penalty, abortion_player
+              is_furo, late_player, late_penalty, abortion_player, pao_player
          FROM hand_results
         WHERE match_round = $1
         ORDER BY hand_number ASC, multi_index ASC`,
