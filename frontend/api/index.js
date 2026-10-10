@@ -201,13 +201,110 @@ app.get('/api/rival-comparison', async (req, res) => {
       combinedRankSum += (m.rank1 + m.rank2);
     });
     const combinedAvgRank = matches.length > 0 ? (combinedRankSum / matches.length) / 2 : 0;
-    let title = "", desc = "";
-    if (matches.length === 0) { title = "기록 없음"; desc = "함께 플레이한 기록이 없습니다."; }
-    else if (combinedAvgRank <= 2.2) { title = "🔥 환상의 짝꿍"; desc = "둘이 같이 치면 서로 승점을 쓸어담는 영혼의 파트너입니다."; }
-    else if (combinedAvgRank >= 2.8) { title = "💣 억제기 듀오"; desc = "서로가 서로의 발목을 잡는, 함께 치면 필패하는 끔찍한 조합입니다."; }
-    else if (Math.abs(p1Wins - p2Wins) < matches.length * 0.1) { title = "⚔️ 진정한 호적수"; desc = "매판 승패를 주고받는 치열한 라이벌 관계입니다."; }
-    else { title = "🤝 무난한 동료"; desc = "평범하게 게임을 이끌어가는 사이입니다."; }
-    res.json({ p1Stats, p2Stats, headToHead: { matchesCount: matches.length, p1Wins, p2Wins, draws, combinedAvgRank, title, desc }, matches });
+
+    // === 상호 방총 데이터 (저격수 판정용, hand 기록 있는 라운드 기준) ===
+    let p1ShotP2 = 0, p2ShotP1 = 0; // p1ShotP2 = p1 이 p2 를 쏘아서(론) 잡은 횟수
+    try {
+      const yearFilterHand = (year && year !== 'all') ? 'AND EXTRACT(YEAR FROM match_date) = $3' : '';
+      const shotResult = await pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE winner_name = $1 AND deal_in_name = $2) AS p1_shot_p2,
+          COUNT(*) FILTER (WHERE winner_name = $2 AND deal_in_name = $1) AS p2_shot_p1
+        FROM hand_results
+        WHERE win_type = 'ron' ${yearFilterHand}
+      `, params);
+      p1ShotP2 = parseInt(shotResult.rows[0]?.p1_shot_p2) || 0;
+      p2ShotP1 = parseInt(shotResult.rows[0]?.p2_shot_p1) || 0;
+    } catch {}
+
+    // 최근 5판 흐름 (matches 는 최신순 정렬)
+    const recent5 = matches.slice(0, 5);
+    const r5p1 = recent5.filter(m => m.rank1 < m.rank2).length;
+    const r5p2 = recent5.filter(m => m.rank2 < m.rank1).length;
+
+    const n = matches.length;
+    const p1Rate = n > 0 ? p1Wins / n : 0;
+    const p2Rate = n > 0 ? p2Wins / n : 0;
+
+    // === 타이틀 판정 (우선순위 순서대로 체크) ===
+    let title = "", desc = "", criteria = "";
+    if (n === 0) {
+      title = "기록 없음"; desc = "함께 플레이한 기록이 없습니다."; criteria = "";
+    } else if (n < 5) {
+      title = "🌱 탐색전";
+      desc = "아직 서로를 파악하는 중인 사이입니다.";
+      criteria = `함께한 판수 5판 미만 (현재 ${n}판)`;
+    } else if ((p1ShotP2 >= 5 || p2ShotP1 >= 5) && (p1ShotP2 >= p2ShotP1 * 2 || p2ShotP1 >= p1ShotP2 * 2)) {
+      const sniper = p1ShotP2 > p2ShotP1 ? p1 : p2;
+      const prey = p1ShotP2 > p2ShotP1 ? p2 : p1;
+      const sCnt = Math.max(p1ShotP2, p2ShotP1), pCnt = Math.min(p1ShotP2, p2ShotP1);
+      title = "🎯 저격수";
+      desc = `${sniper} 가(이) ${prey} 를(을) 집중적으로 쏘아 잡는 관계입니다.`;
+      criteria = `론 직격 ${sCnt}회 vs ${pCnt}회 — 5회 이상 + 상대의 2배 이상 (국별 기록 기준)`;
+    } else if (p1Rate >= 0.65 || p2Rate >= 0.65) {
+      const pred = p1Rate >= 0.65 ? p1 : p2;
+      const prey = p1Rate >= 0.65 ? p2 : p1;
+      const rate = Math.max(p1Rate, p2Rate);
+      title = "🐍 천적 관계";
+      desc = `${pred} 가(이) ${prey} 의 천적입니다. 만나면 대부분 ${pred} 가(이) 앞섭니다.`;
+      criteria = `상대전적 승률 ${(rate * 100).toFixed(1)}% — 65% 이상이면 천적`;
+    } else if ((p1Rate < p2Rate && r5p1 >= 4) || (p2Rate < p1Rate && r5p2 >= 4)) {
+      const riser = r5p1 >= 4 ? p1 : p2;
+      title = "📈 기세 역전";
+      desc = `통산 전적은 밀리지만 최근 흐름은 ${riser} 가(이) 완전히 잡았습니다.`;
+      criteria = `통산 열세인데 최근 5판 중 4승 이상 (${riser} 최근 ${Math.max(r5p1, r5p2)}승)`;
+    } else if (n >= 30 && Math.abs(p1Rate - p2Rate) <= 0.10) {
+      title = "⚔️ 숙명의 라이벌";
+      desc = "오랜 기간 수없이 맞붙었지만 아직도 우열을 가리지 못한 사이입니다.";
+      criteria = `30판 이상 (${n}판) + 승률 차 10%p 이내 (${(Math.abs(p1Rate - p2Rate) * 100).toFixed(1)}%p)`;
+    } else if (combinedAvgRank <= 2.2) {
+      title = "🔥 환상의 짝꿍";
+      desc = "둘이 같이 치면 서로 승점을 쓸어담는 영혼의 파트너입니다.";
+      criteria = `같이 친 판의 두 사람 평균 순위 ${combinedAvgRank.toFixed(2)}위 — 2.20위 이내`;
+    } else if (combinedAvgRank >= 2.8) {
+      title = "💣 억제기 듀오";
+      desc = "서로가 서로의 발목을 잡는, 함께 치면 필패하는 끔찍한 조합입니다.";
+      criteria = `같이 친 판의 두 사람 평균 순위 ${combinedAvgRank.toFixed(2)}위 — 2.80위 이상`;
+    } else if (Math.abs(p1Wins - p2Wins) < n * 0.1) {
+      title = "⚔️ 진정한 호적수";
+      desc = "매판 승패를 주고받는 치열한 라이벌 관계입니다.";
+      criteria = `승패 차가 전체 판수의 10% 미만 (${p1Wins}승 vs ${p2Wins}승 / ${n}판)`;
+    } else {
+      title = "🤝 무난한 동료";
+      desc = "평범하게 게임을 이끌어가는 사이입니다.";
+      criteria = "특별한 조건에 해당하지 않는 기본 관계";
+    }
+    res.json({ p1Stats, p2Stats, headToHead: { matchesCount: n, p1Wins, p2Wins, draws, combinedAvgRank, title, desc, criteria, p1ShotP2, p2ShotP1 }, matches });
+  } catch (err) { res.status(500).send(err.toString()); }
+});
+
+// === 한 명 vs 전체 상대전적 ===
+app.get('/api/rival-all', async (req, res) => {
+  try {
+    const { player, year } = req.query;
+    if (!player) return res.status(400).send("Provide player");
+    let yearFilter = '';
+    const params = [player];
+    if (year && year !== 'all') {
+      yearFilter = 'AND EXTRACT(YEAR FROM match_date) = $2';
+      params.push(parseInt(year));
+    }
+    const result = await pool.query(`
+      WITH my AS (
+        SELECT round, rank FROM match_results
+        WHERE player_name = $1 ${yearFilter}
+      )
+      SELECT
+        m2.player_name AS opponent,
+        COUNT(*)::int AS matches,
+        COUNT(*) FILTER (WHERE my.rank < m2.rank)::int AS wins,
+        COUNT(*) FILTER (WHERE my.rank > m2.rank)::int AS losses
+      FROM my
+      JOIN match_results m2 ON m2.round = my.round AND m2.player_name <> $1
+      GROUP BY m2.player_name
+      ORDER BY matches DESC, wins DESC
+    `, params);
+    res.json(result.rows);
   } catch (err) { res.status(500).send(err.toString()); }
 });
 
