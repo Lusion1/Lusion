@@ -292,7 +292,7 @@ app.get('/api/ratings', async (req, res) => {
       params.push(parseInt(year));
     }
     const result = await pool.query(`
-      SELECT round, player_name, uma
+      SELECT round, player_name, uma, rank, final_score, TO_CHAR(match_date, 'MM-DD') AS d
         FROM match_results ${where}
        ORDER BY match_date ASC, round ASC, rank ASC
     `, params);
@@ -308,7 +308,7 @@ app.get('/api/ratings', async (req, res) => {
       const rows = byRound[rd];
       if (rows.length !== 4) continue;
       for (const r of rows) {
-        if (rating[r.player_name] == null) { rating[r.player_name] = START; games[r.player_name] = 0; history[r.player_name] = [START]; }
+        if (rating[r.player_name] == null) { rating[r.player_name] = START; games[r.player_name] = 0; history[r.player_name] = [{ r: START }]; }
       }
       const snap = rows.map(r => rating[r.player_name]);
       const sum = snap.reduce((a, b) => a + b, 0);
@@ -320,14 +320,22 @@ app.get('/api/ratings', async (req, res) => {
         if (delta < -CAP_RATE) delta = -CAP_RATE;
         rating[r.player_name] += delta;
         games[r.player_name] += 1;
-        history[r.player_name].push(Math.round(rating[r.player_name]));
+        // r=레이팅, rd=라운드, d=날짜(MM-DD), rk=순위, sc=최종점수, um=우마 — 추이 그래프 툴팁용
+        history[r.player_name].push({
+          r: Math.round(rating[r.player_name]),
+          rd: rd,
+          d: r.d,
+          rk: r.rank,
+          sc: r.final_score,
+          um: Number(r.uma),
+        });
       });
     }
     res.json(Object.keys(rating).map(name => ({
       player_name: name,
       rating: Math.round(rating[name]),
       rated_games: games[name],
-      history: history[name], // [1500, 1판후, 2판후, ...] — 멤버 상세 추이 그래프용
+      history: history[name], // [{r:1500}, {r,rd,d,rk,sc,um}, ...] — 멤버 상세 추이 그래프용
     })));
   } catch (err) { res.status(500).send(err.toString()); }
 });
