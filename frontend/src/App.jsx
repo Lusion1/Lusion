@@ -36,9 +36,10 @@ const CURRENT_YEAR = String(new Date().getFullYear());
 const YEAR_OPTIONS = ['all', String(Number(CURRENT_YEAR) - 1), CURRENT_YEAR];
 const STAT_FIELDS = [
     { key: 'total_matches', label: '총 게임수' },
-    { key: 'avg_rank', label: '평균 순위' },
-    { key: 'avg_uma', label: '평균 우마' },
     { key: 'total_uma', label: '총 우마' },
+    { key: 'avg_uma', label: '평균 우마' },
+    { key: 'rating', label: '레이팅' },
+    { key: 'avg_rank', label: '평균 순위' },
     { key: 'rank1_rate', label: '1위율' },
     { key: 'rank2_rate', label: '2위율' },
     { key: 'rank3_rate', label: '3위율' },
@@ -69,6 +70,7 @@ export default function App() {
     const [stats, setStats] = useState([]);
     const [dailyStats, setDailyStats] = useState([]);
     const [handStats, setHandStats] = useState([]);
+    const [ratings, setRatings] = useState([]); // 우마예측형 레이팅 (테스트 지표)
     const [detailMember, setDetailMember] = useState(null);
     const [yakuStats, setYakuStats] = useState([]);
     const [players, setPlayers] = useState([]);
@@ -177,6 +179,11 @@ export default function App() {
         fetch(`${API_BASE}/hand-stats?year=${globalYear}`)
             .then(res => res.json())
             .then(data => setHandStats(Array.isArray(data) ? data : []))
+            .catch(err => console.error(err));
+
+        fetch(`${API_BASE}/ratings?year=${globalYear}`)
+            .then(res => res.json())
+            .then(data => setRatings(Array.isArray(data) ? data : []))
             .catch(err => console.error(err));
 
         fetch(`${API_BASE}/yaku-stats?year=${globalYear}`)
@@ -599,6 +606,11 @@ export default function App() {
             ippatsu_rate: wins > 0 ? (ipp / wins) : null,
             // 역만 계열 합계 (역만 + 헤아림 + 더블 이상) — 명예의 전당 '낭만폭발' 용
             yakuman_total: (parseInt(p.total_yakuman) || 0) + (parseInt(p.total_kazoeyakuman) || 0) + (parseInt(p.total_doubleyakuman) || 0),
+            // 레이팅 (우마예측형, 테스트 지표)
+            rating: (() => {
+                const rt = ratings.find(x => x.player_name === p.player_name);
+                return rt ? Number(rt.rating) : null;
+            })(),
         };
     });
     // === 순위화 자격 기준: 판수 미달 멤버는 정렬 대상에서 제외 (항상 하단, 순위 '-') ===
@@ -637,6 +649,7 @@ export default function App() {
     const renderStats = () => {
         const STAT_DESC = {
             total_uma: '시즌 동안 누적 우마 합계. 모임의 핵심 성적',
+            rating: '[레이팅 — 테스트 지표, 재미로 보는 값입니다. 공식 순위는 총 우마 기준!]\n\n모두 1500에서 시작해, 매 판 "기대 우마"보다 잘 치면 오르고 못 치면 내려갑니다.\n\n· 기대 우마 = (내 레이팅 − 같은 테이블 상대 3명 평균) ÷ 20\n· 변동 = 0.3 × (실제 우마 − 기대 우마), 한 판 최대 ±25\n\n강한 상대 사이에서 거둔 성적일수록 높게 평가되고, 판수를 많이 쳐도 레이팅은 올라가지 않습니다 (잘 쳐야만 오름). 레이팅 100점 차이 ≈ 판당 우마 5점 차이의 실력. 20판 미만은 아직 측정 중인 잠정값입니다.',
             tobi_rate: '게임 종료 시 점수가 마이너스 비율',
             rank12_rate: '1·2위로 끝낸 비율',
             win_rate: '기록된 국 중 화료한 비율',
@@ -828,9 +841,10 @@ export default function App() {
                     <tr className="bg-slate-900 text-white text-center cursor-pointer select-none">
                         <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition sticky-corner bg-slate-900" onClick={() => requestSort('player_name')}>이름 {getSortIndicator('player_name')}<InfoIcon k='player_name' /></th>
                         {showField('total_matches') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('total_matches')}>총 게임수 {getSortIndicator('total_matches')}<InfoIcon k='total_matches' /></th>}
-                        {showField('avg_rank') && <th className="p-3 border-r border-slate-700 text-orange-400 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank')}>평균 순위 {getSortIndicator('avg_rank')}<InfoIcon k='avg_rank' /></th>}
-                        {showField('avg_uma') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('avg_uma')}>평균 우마 {getSortIndicator('avg_uma')}<InfoIcon k='avg_uma' /></th>}
                         {showField('total_uma') && <th className="p-3 border-r border-slate-700 font-bold hover:bg-slate-800 transition" onClick={() => requestSort('total_uma')}>총 우마 {getSortIndicator('total_uma')}<InfoIcon k='total_uma' /></th>}
+                        {showField('avg_uma') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('avg_uma')}>평균 우마 {getSortIndicator('avg_uma')}<InfoIcon k='avg_uma' /></th>}
+                        {showField('rating') && <th className="p-3 border-r border-slate-700 text-cyan-300 hover:bg-slate-800 transition" onClick={() => requestSort('rating')}>레이팅 {getSortIndicator('rating')}<InfoIcon k='rating' /></th>}
+                        {showField('avg_rank') && <th className="p-3 border-r border-slate-700 text-orange-400 hover:bg-slate-800 transition" onClick={() => requestSort('avg_rank')}>평균 순위 {getSortIndicator('avg_rank')}<InfoIcon k='avg_rank' /></th>}
                         {showField('rank1_rate') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank1_rate')}>1위율 {getSortIndicator('rank1_rate')}<InfoIcon k='rank1_rate' /></th>}
                         {showField('rank2_rate') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank2_rate')}>2위율 {getSortIndicator('rank2_rate')}<InfoIcon k='rank2_rate' /></th>}
                         {showField('rank3_rate') && <th className="p-3 border-r border-slate-700 hover:bg-slate-800 transition" onClick={() => requestSort('rank3_rate')}>3위율 {getSortIndicator('rank3_rate')}<InfoIcon k='rank3_rate' /></th>}
@@ -861,9 +875,13 @@ export default function App() {
                             <tr key={s.player_name} className={`group border-b transition text-center ${isHighlighted ? 'bg-orange-100 border-orange-200 hover:bg-orange-200' : 'hover:bg-slate-50 border-slate-100'} ${!qualified ? 'opacity-70' : ''}`}>
                                 <td className={`p-3 font-bold border-r sticky-column cursor-pointer hover:underline ${isHighlighted ? 'border-orange-200 text-orange-900 bg-orange-100 group-hover:bg-orange-200' : 'border-slate-100 text-slate-800 bg-white group-hover:bg-slate-50'}`} onClick={() => setDetailMember(s.player_name)} title={qualified ? '클릭: 상세 통계' : `클릭: 상세 통계 (순위 반영은 ${RANK_MIN_MATCHES}판부터)`}><span className="text-xs text-slate-400 mr-1">{rankLabel}</span> {s.player_name}</td>
                                 {showField('total_matches') && <td className="p-3 font-medium border-r border-slate-100">{s.total_matches}</td>}
-                                {showField('avg_rank') && <td className={`p-3 font-black border-r border-slate-100 ${getRankColor(idx)}`}>{Number(s.avg_rank).toFixed(2)}</td>}
-                                {showField('avg_uma') && <td className={`p-3 border-r border-slate-100 ${s.avg_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.avg_uma).toFixed(2)}</td>}
                                 {showField('total_uma') && <td className={`p-3 font-black border-r border-slate-100 ${s.total_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.total_uma).toFixed(1)}</td>}
+                                {showField('avg_uma') && <td className={`p-3 border-r border-slate-100 ${s.avg_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.avg_uma).toFixed(2)}</td>}
+                                {showField('rating') && <td className="p-3 font-bold border-r border-slate-100 text-cyan-700">
+                                    {s.rating == null ? '-' : s.rating}
+                                    {s.rating != null && (parseInt(s.total_matches) || 0) < 20 && <span className="ml-1 text-[9px] text-slate-400 font-normal">잠정</span>}
+                                </td>}
+                                {showField('avg_rank') && <td className={`p-3 font-black border-r border-slate-100 ${getRankColor(idx)}`}>{Number(s.avg_rank).toFixed(2)}</td>}
                                 {showField('rank1_rate') && <td className="p-3 border-r border-slate-100">{(s.rank1_rate * 100).toFixed(1)}%</td>}
                                 {showField('rank2_rate') && <td className="p-3 border-r border-slate-100">{(s.rank2_rate * 100).toFixed(1)}%</td>}
                                 {showField('rank3_rate') && <td className="p-3 border-r border-slate-100">{(s.rank3_rate * 100).toFixed(1)}%</td>}
