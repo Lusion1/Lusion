@@ -1,6 +1,126 @@
 import React from 'react';
 import { YAKU_MAP } from '../lib/yaku.js';
 
+// === 레이팅 추이 차트 (호버/터치 시 해당 판 정보 툴팁) ===
+function RatingChart({ history }) {
+    const [hover, setHover] = React.useState(null);
+    const svgRef = React.useRef(null);
+    // 구버전(숫자 배열) 호환
+    const pts = history.map(h => (typeof h === 'number' ? { r: h } : h));
+    const n = pts.length;
+    if (n < 2) return null;
+
+    const W = 640, H = 170, L = 42, R = 12, T = 12, B = 24;
+    const vals = pts.map(p => p.r);
+    const hMin = Math.min(...vals, 1500);
+    const hMax = Math.max(...vals, 1500);
+    const span = Math.max(hMax - hMin, 20);
+    const x = (i) => L + (W - L - R) * i / (n - 1);
+    const y = (v) => T + (H - T - B) * (1 - (v - hMin) / span);
+
+    const line = pts.map((p, i) => `${x(i).toFixed(1)},${y(p.r).toFixed(1)}`).join(' ');
+    const area = `${x(0).toFixed(1)},${(H - B).toFixed(1)} ${line} ${x(n - 1).toFixed(1)},${(H - B).toFixed(1)}`;
+    const last = vals[n - 1];
+    const up = last >= 1500;
+    const mainColor = up ? '#0e7490' : '#e11d48';
+    const peak = Math.max(...vals);
+    const trough = Math.min(...vals);
+
+    // Y축 눈금: 최저 / 1500 / 최고 (겹치면 생략)
+    const yTicks = [...new Set([hMin, 1500, hMax])].filter(v => {
+        return Math.abs(y(v) - y(1500)) > 10 || v === 1500;
+    });
+
+    // 월 경계 눈금 (날짜가 바뀌는 지점 중 월이 바뀌는 첫 판)
+    const monthTicks = [];
+    let prevMonth = null;
+    pts.forEach((p, i) => {
+        if (!p.d) return;
+        const m = p.d.slice(0, 2);
+        if (m !== prevMonth) {
+            monthTicks.push({ i, label: `${parseInt(m)}월` });
+            prevMonth = m;
+        }
+    });
+
+    const locate = (clientX) => {
+        const rect = svgRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const fx = (clientX - rect.left) / rect.width * W;
+        let idx = Math.round((fx - L) / (W - L - R) * (n - 1));
+        idx = Math.max(1, Math.min(n - 1, idx)); // 0번(시작점 1500)은 제외
+        setHover(idx);
+    };
+
+    const hv = hover != null ? pts[hover] : null;
+    const hvDelta = hover != null ? pts[hover].r - pts[hover - 1].r : 0;
+
+    return (
+        <div className="mb-4 bg-white border border-slate-200 rounded-lg p-3">
+            <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
+                <div className="text-sm font-bold text-slate-700">📈 레이팅 추이 <span className="text-[10px] font-normal text-slate-400">({n - 1}판 · 1500 시작 · 선에 마우스를 올려보세요)</span></div>
+                <div className="text-[10px] text-slate-500">
+                    최고 <b className="text-cyan-700">{peak}</b> · 최저 <b className="text-rose-500">{trough}</b> · 현재 <b style={{ color: mainColor }}>{last}</b>
+                </div>
+            </div>
+
+            {/* 호버 정보 바 (고정 높이 — 레이아웃 흔들림 방지) */}
+            <div className="h-6 text-[11px] flex items-center justify-center rounded bg-slate-50 border border-slate-100 mb-1">
+                {hv ? (
+                    <span className="text-slate-700">
+                        <b>{hv.d}</b> · R{hv.rd} · <b>{hv.rk}위</b> {Number(hv.sc).toLocaleString()}점
+                        <span className={'ml-1 ' + ((hv.um ?? 0) >= 0 ? 'text-green-600' : 'text-red-500')}>(우마 {(hv.um ?? 0) >= 0 ? '+' : ''}{Number(hv.um ?? 0).toFixed(1)})</span>
+                        <span className="mx-1 text-slate-300">→</span>
+                        레이팅 <b style={{ color: mainColor }}>{hv.r}</b>
+                        <b className={'ml-1 ' + (hvDelta >= 0 ? 'text-emerald-600' : 'text-rose-500')}>({hvDelta >= 0 ? '▲' : '▼'}{Math.abs(hvDelta)})</b>
+                    </span>
+                ) : (
+                    <span className="text-slate-400">선 위에 마우스를 올리면 그 판의 상세가 표시됩니다</span>
+                )}
+            </div>
+
+            <svg
+                ref={svgRef}
+                viewBox={`0 0 ${W} ${H}`}
+                className="w-full cursor-crosshair select-none"
+                style={{ height: '150px' }}
+                preserveAspectRatio="none"
+                onMouseMove={e => locate(e.clientX)}
+                onMouseLeave={() => setHover(null)}
+                onTouchStart={e => locate(e.touches[0].clientX)}
+                onTouchMove={e => locate(e.touches[0].clientX)}
+            >
+                {/* Y축 눈금 + 가로 보조선 */}
+                {yTicks.map(v => (
+                    <g key={v}>
+                        <line x1={L} y1={y(v)} x2={W - R} y2={y(v)} stroke={v === 1500 ? '#94a3b8' : '#e2e8f0'} strokeWidth="1" strokeDasharray={v === 1500 ? '5 4' : '2 3'} />
+                        <text x={L - 5} y={y(v) + 3.5} textAnchor="end" fontSize="10" fill={v === 1500 ? '#64748b' : '#94a3b8'}>{v}</text>
+                    </g>
+                ))}
+                {/* 월 경계 눈금 */}
+                {monthTicks.map(t => (
+                    <g key={t.i}>
+                        <line x1={x(t.i)} y1={T} x2={x(t.i)} y2={H - B} stroke="#f1f5f9" strokeWidth="1" />
+                        <text x={x(t.i) + 2} y={H - B + 13} fontSize="9.5" fill="#94a3b8">{t.label}</text>
+                    </g>
+                ))}
+                {/* 영역 + 라인 */}
+                <polygon points={area} fill={mainColor} opacity="0.08" />
+                <polyline points={line} fill="none" stroke={mainColor} strokeWidth="2" strokeLinejoin="round" />
+                {/* 호버 가이드 */}
+                {hover != null && (
+                    <g>
+                        <line x1={x(hover)} y1={T} x2={x(hover)} y2={H - B} stroke="#64748b" strokeWidth="1" strokeDasharray="3 3" />
+                        <circle cx={x(hover)} cy={y(pts[hover].r)} r="4.5" fill="#fff" stroke={mainColor} strokeWidth="2.5" />
+                    </g>
+                )}
+                {/* 현재 지점 */}
+                <circle cx={x(n - 1)} cy={y(last)} r="3.5" fill={mainColor} />
+            </svg>
+        </div>
+    );
+}
+
 // props: playerName, allStats (기존 /api/stats), handStats (/api/hand-stats), yakuStats (/api/yaku-stats), onClose
 export default function MemberDetailModal({ playerName, allStats = [], handStats = [], yakuStats = [], ratingInfo = null, onClose }) {
     if (!playerName) return null;
@@ -91,40 +211,10 @@ export default function MemberDetailModal({ playerName, allStats = [], handStats
                         </div>
                     </div>
 
-                    {/* 레이팅 추이 꺾은선 그래프 — X축 = n번째 판 (전원 왼쪽 1500 시작, 전체 너비 정규화) */}
-                    {ratingInfo && Array.isArray(ratingInfo.history) && ratingInfo.history.length >= 2 && (() => {
-                        const hist = ratingInfo.history;
-                        const W = 600, H = 120, P = 10;
-                        const hMin = Math.min(...hist, 1500);
-                        const hMax = Math.max(...hist, 1500);
-                        const span = Math.max(hMax - hMin, 20);
-                        const x = (i) => P + (W - 2 * P) * i / (hist.length - 1);
-                        const y = (v) => P + (H - 2 * P) * (1 - (v - hMin) / span);
-                        const pts = hist.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-                        const last = hist[hist.length - 1];
-                        const peak = Math.max(...hist);
-                        const trough = Math.min(...hist);
-                        return (
-                            <div className="mb-4 bg-white border border-slate-200 rounded-lg p-3">
-                                <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
-                                    <div className="text-sm font-bold text-slate-700">📈 레이팅 추이 <span className="text-[10px] font-normal text-slate-400">({hist.length - 1}판 · 1500 시작)</span></div>
-                                    <div className="text-[10px] text-slate-500">
-                                        최고 <b className="text-cyan-700">{peak}</b> · 최저 <b className="text-rose-500">{trough}</b> · 현재 <b className={last >= 1500 ? 'text-cyan-700' : 'text-rose-500'}>{last}</b>
-                                    </div>
-                                </div>
-                                <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: '110px' }} preserveAspectRatio="none">
-                                    <line x1={P} y1={y(1500)} x2={W - P} y2={y(1500)} stroke="#cbd5e1" strokeWidth="1" strokeDasharray="4 4" />
-                                    <polyline points={pts} fill="none" stroke={last >= 1500 ? '#0e7490' : '#e11d48'} strokeWidth="2" strokeLinejoin="round" />
-                                    <circle cx={x(hist.length - 1)} cy={y(last)} r="3.5" fill={last >= 1500 ? '#0e7490' : '#e11d48'} />
-                                </svg>
-                                <div className="flex justify-between text-[10px] text-slate-400">
-                                    <span>1판째</span>
-                                    <span className="text-slate-300">- - - 기준선 1500</span>
-                                    <span>{hist.length - 1}판째 (최신)</span>
-                                </div>
-                            </div>
-                        );
-                    })()}
+                    {/* 레이팅 추이 — X축 = n번째 판 (전원 왼쪽 1500 시작), 월 경계 눈금, 호버 툴팁 */}
+                    {ratingInfo && Array.isArray(ratingInfo.history) && ratingInfo.history.length >= 2 && (
+                        <RatingChart history={ratingInfo.history} />
+                    )}
 
                     <Section title="간단 통계">
                         <tbody>
