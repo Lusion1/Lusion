@@ -2,7 +2,7 @@ import React from 'react';
 import { YAKU_MAP } from '../lib/yaku.js';
 
 // props: playerName, allStats (기존 /api/stats), handStats (/api/hand-stats), yakuStats (/api/yaku-stats), onClose
-export default function MemberDetailModal({ playerName, allStats = [], handStats = [], yakuStats = [], onClose }) {
+export default function MemberDetailModal({ playerName, allStats = [], handStats = [], yakuStats = [], ratingInfo = null, onClose }) {
     if (!playerName) return null;
     const s = allStats.find(x => x.player_name === playerName) || {};
     const h = handStats.find(x => x.player_name === playerName) || {};
@@ -69,7 +69,7 @@ export default function MemberDetailModal({ playerName, allStats = [], handStats
 
                 <div className="p-4">
                     {/* 좌측 요약 */}
-                    <div className="grid grid-cols-3 gap-2 mb-4 text-center">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4 text-center">
                         <div className="bg-orange-50 border border-orange-200 rounded p-2">
                             <div className="text-xs text-orange-700">총 판수 (게임)</div>
                             <div className="text-xl font-black text-orange-800">{int(s.total_matches)}</div>
@@ -82,7 +82,49 @@ export default function MemberDetailModal({ playerName, allStats = [], handStats
                             <div className="text-xs text-green-700">총 우마</div>
                             <div className={'text-xl font-black ' + (Number(s.total_uma) >= 0 ? 'text-green-700' : 'text-red-500')}>{num(s.total_uma)}</div>
                         </div>
+                        <div className="bg-cyan-50 border border-cyan-200 rounded p-2">
+                            <div className="text-xs text-cyan-700">레이팅</div>
+                            <div className="text-xl font-black text-cyan-800">
+                                {ratingInfo ? ratingInfo.rating : '-'}
+                                {ratingInfo && (parseInt(s.total_matches) || 0) < 20 && <span className="ml-1 text-[9px] font-bold text-slate-400 align-middle">잠정</span>}
+                            </div>
+                        </div>
                     </div>
+
+                    {/* 레이팅 추이 꺾은선 그래프 — X축 = n번째 판 (전원 왼쪽 1500 시작, 전체 너비 정규화) */}
+                    {ratingInfo && Array.isArray(ratingInfo.history) && ratingInfo.history.length >= 2 && (() => {
+                        const hist = ratingInfo.history;
+                        const W = 600, H = 120, P = 10;
+                        const hMin = Math.min(...hist, 1500);
+                        const hMax = Math.max(...hist, 1500);
+                        const span = Math.max(hMax - hMin, 20);
+                        const x = (i) => P + (W - 2 * P) * i / (hist.length - 1);
+                        const y = (v) => P + (H - 2 * P) * (1 - (v - hMin) / span);
+                        const pts = hist.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+                        const last = hist[hist.length - 1];
+                        const peak = Math.max(...hist);
+                        const trough = Math.min(...hist);
+                        return (
+                            <div className="mb-4 bg-white border border-slate-200 rounded-lg p-3">
+                                <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
+                                    <div className="text-sm font-bold text-slate-700">📈 레이팅 추이 <span className="text-[10px] font-normal text-slate-400">({hist.length - 1}판 · 1500 시작)</span></div>
+                                    <div className="text-[10px] text-slate-500">
+                                        최고 <b className="text-cyan-700">{peak}</b> · 최저 <b className="text-rose-500">{trough}</b> · 현재 <b className={last >= 1500 ? 'text-cyan-700' : 'text-rose-500'}>{last}</b>
+                                    </div>
+                                </div>
+                                <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: '110px' }} preserveAspectRatio="none">
+                                    <line x1={P} y1={y(1500)} x2={W - P} y2={y(1500)} stroke="#cbd5e1" strokeWidth="1" strokeDasharray="4 4" />
+                                    <polyline points={pts} fill="none" stroke={last >= 1500 ? '#0e7490' : '#e11d48'} strokeWidth="2" strokeLinejoin="round" />
+                                    <circle cx={x(hist.length - 1)} cy={y(last)} r="3.5" fill={last >= 1500 ? '#0e7490' : '#e11d48'} />
+                                </svg>
+                                <div className="flex justify-between text-[10px] text-slate-400">
+                                    <span>1판째</span>
+                                    <span className="text-slate-300">- - - 기준선 1500</span>
+                                    <span>{hist.length - 1}판째 (최신)</span>
+                                </div>
+                            </div>
+                        );
+                    })()}
 
                     <Section title="간단 통계">
                         <tbody>
