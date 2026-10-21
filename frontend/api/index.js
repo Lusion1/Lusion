@@ -278,6 +278,58 @@ app.get('/api/rival-comparison', async (req, res) => {
   } catch (err) { res.status(500).send(err.toString()); }
 });
 
+// === 레이팅 (우마예측형, 재생 계산) ===
+//   공식: 변동 = C_RATE × (실제우마 − (내레이팅 − 테이블평균) ÷ D_RATE), 캡 ±CAP_RATE
+//   D=20 → 레이팅 100점 차 = 판당 우마 5점 차 실력
+app.get('/api/ratings', async (req, res) => {
+  try {
+    const year = req.query.year;
+    const D_RATE = 20, C_RATE = 0.3, CAP_RATE = 25, START = 1500;
+    let where = '';
+    const params = [];
+    if (year && year !== 'all') {
+      where = 'WHERE EXTRACT(YEAR FROM match_date) = $1';
+      params.push(parseInt(year));
+    }
+    const result = await pool.query(`
+      SELECT round, player_name, uma
+        FROM match_results ${where}
+       ORDER BY match_date ASC, round ASC, rank ASC
+    `, params);
+    // 라운드별 그룹핑 (순서 유지)
+    const rounds = [];
+    const byRound = {};
+    for (const r of result.rows) {
+      if (!byRound[r.round]) { byRound[r.round] = []; rounds.push(r.round); }
+      byRound[r.round].push(r);
+    }
+    const rating = {}, games = {};
+    for (const rd of rounds) {
+      const rows = byRound[rd];
+      if (rows.length !== 4) continue;
+      for (const r of rows) {
+        if (rating[r.player_name] == null) { rating[r.player_name] = START; games[r.player_name] = 0; }
+      }
+      const snap = rows.map(r => rating[r.player_name]);
+      const sum = snap.reduce((a, b) => a + b, 0);
+      rows.forEach((r, i) => {
+        const avgOpp = (sum - snap[i]) / 3;
+        const expected = (snap[i] - avgOpp) / D_RATE;
+        let delta = C_RATE * (Number(r.uma) - expected);
+        if (delta > CAP_RATE) delta = CAP_RATE;
+        if (delta < -CAP_RATE) delta = -CAP_RATE;
+        rating[r.player_name] += delta;
+        games[r.player_name] += 1;
+      });
+    }
+    res.json(Object.keys(rating).map(name => ({
+      player_name: name,
+      rating: Math.round(rating[name]),
+      rated_games: games[name],
+    })));
+  } catch (err) { res.status(500).send(err.toString()); }
+});
+
 // === 한 명 vs 전체 상대전적 ===
 app.get('/api/rival-all', async (req, res) => {
   try {
