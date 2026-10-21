@@ -611,6 +611,12 @@ export default function App() {
                 const rt = ratings.find(x => x.player_name === p.player_name);
                 return rt ? Number(rt.rating) : null;
             })(),
+            // 최근 10판 우마 합 (records 는 최신순 정렬이라 앞에서 10개)
+            uma_recent10: (() => {
+                const mine = records.filter(r => r.player_name === p.player_name).slice(0, 10);
+                if (mine.length === 0) return null;
+                return mine.reduce((sum, r) => sum + (Number(r.uma) || 0), 0);
+            })(),
         };
     });
     // === 순위화 자격 기준: 판수 미달 멤버는 정렬 대상에서 제외 (항상 하단, 순위 '-') ===
@@ -648,7 +654,7 @@ export default function App() {
 
     const renderStats = () => {
         const STAT_DESC = {
-            total_uma: '시즌 동안 누적 우마 합계. 모임의 핵심 성적',
+            total_uma: '시즌 동안 누적 우마 합계. 모임의 핵심 성적\n(숫자 옆 작은 ▲▼ = 최근 10판 우마 합 — 요즘 기세)',
             rating: '[레이팅 — 테스트 지표, 재미로 보는 값입니다. 공식 순위는 총 우마 기준!]\n\n모두 1500에서 시작해, 매 판 "기대 우마"보다 잘 치면 오르고 못 치면 내려갑니다.\n\n· 기대 우마 = (내 레이팅 − 같은 테이블 상대 3명 평균) ÷ 20\n· 변동 = 0.3 × (실제 우마 − 기대 우마), 한 판 최대 ±25\n\n강한 상대 사이에서 거둔 성적일수록 높게 평가되고, 판수를 많이 쳐도 레이팅은 올라가지 않습니다 (잘 쳐야만 오름). 레이팅 100점 차이 ≈ 판당 우마 5점 차이의 실력. 20판 미만은 아직 측정 중인 잠정값입니다.',
             tobi_rate: '게임 종료 시 점수가 마이너스 비율',
             rank12_rate: '1·2위로 끝낸 비율',
@@ -875,7 +881,14 @@ export default function App() {
                             <tr key={s.player_name} className={`group border-b transition text-center ${isHighlighted ? 'bg-orange-100 border-orange-200 hover:bg-orange-200' : 'hover:bg-slate-50 border-slate-100'} ${!qualified ? 'opacity-70' : ''}`}>
                                 <td className={`p-3 font-bold border-r sticky-column cursor-pointer hover:underline ${isHighlighted ? 'border-orange-200 text-orange-900 bg-orange-100 group-hover:bg-orange-200' : 'border-slate-100 text-slate-800 bg-white group-hover:bg-slate-50'}`} onClick={() => setDetailMember(s.player_name)} title={qualified ? '클릭: 상세 통계' : `클릭: 상세 통계 (순위 반영은 ${RANK_MIN_MATCHES}판부터)`}><span className="text-xs text-slate-400 mr-1">{rankLabel}</span> {s.player_name}</td>
                                 {showField('total_matches') && <td className="p-3 font-medium border-r border-slate-100">{s.total_matches}</td>}
-                                {showField('total_uma') && <td className={`p-3 font-black border-r border-slate-100 ${s.total_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.total_uma).toFixed(1)}</td>}
+                                {showField('total_uma') && <td className={`p-3 font-black border-r border-slate-100 ${s.total_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                    {Number(s.total_uma).toFixed(1)}
+                                    {s.uma_recent10 != null && (
+                                        <span className={`ml-1 text-[9px] font-bold align-middle ${s.uma_recent10 >= 0 ? 'text-emerald-500' : 'text-rose-400'}`} title="최근 10판 우마 합">
+                                            {s.uma_recent10 >= 0 ? '▲' : '▼'}{Math.abs(s.uma_recent10).toFixed(0)}
+                                        </span>
+                                    )}
+                                </td>}
                                 {showField('avg_uma') && <td className={`p-3 border-r border-slate-100 ${s.avg_uma > 0 ? 'text-green-600' : 'text-red-500'}`}>{Number(s.avg_uma).toFixed(2)}</td>}
                                 {showField('rating') && <td className="p-3 font-bold border-r border-slate-100 text-cyan-700">
                                     {s.rating == null ? '-' : s.rating}
@@ -2089,6 +2102,7 @@ export default function App() {
                             allStats={stats}
                             handStats={handStats}
                             yakuStats={yakuStats}
+                            ratingInfo={ratings.find(r => r.player_name === detailMember) || null}
                             onClose={() => setDetailMember(null)}
                         />
                     )}
