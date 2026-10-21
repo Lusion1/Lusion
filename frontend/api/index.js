@@ -303,12 +303,12 @@ app.get('/api/ratings', async (req, res) => {
       if (!byRound[r.round]) { byRound[r.round] = []; rounds.push(r.round); }
       byRound[r.round].push(r);
     }
-    const rating = {}, games = {};
+    const rating = {}, games = {}, history = {};
     for (const rd of rounds) {
       const rows = byRound[rd];
       if (rows.length !== 4) continue;
       for (const r of rows) {
-        if (rating[r.player_name] == null) { rating[r.player_name] = START; games[r.player_name] = 0; }
+        if (rating[r.player_name] == null) { rating[r.player_name] = START; games[r.player_name] = 0; history[r.player_name] = [START]; }
       }
       const snap = rows.map(r => rating[r.player_name]);
       const sum = snap.reduce((a, b) => a + b, 0);
@@ -320,12 +320,14 @@ app.get('/api/ratings', async (req, res) => {
         if (delta < -CAP_RATE) delta = -CAP_RATE;
         rating[r.player_name] += delta;
         games[r.player_name] += 1;
+        history[r.player_name].push(Math.round(rating[r.player_name]));
       });
     }
     res.json(Object.keys(rating).map(name => ({
       player_name: name,
       rating: Math.round(rating[name]),
       rated_games: games[name],
+      history: history[name], // [1500, 1판후, 2판후, ...] — 멤버 상세 추이 그래프용
     })));
   } catch (err) { res.status(500).send(err.toString()); }
 });
