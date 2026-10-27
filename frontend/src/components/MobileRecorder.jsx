@@ -677,7 +677,13 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                                                             const names = nagashiWinds.map(w => (seats.find(s => s.wind === w)?.name) || w).join(',');
                                                             return `유국만관 (${names})`;
                                                         }
-                                                        return '유국';
+                                                        // 텐파이자 표시
+                                                        const tenpaiNames = ['동','남','서','북']
+                                                            .filter(w => h['tenpai_' + WIND_TO_FIELD[w]])
+                                                            .map(w => (seats.find(s => s.wind === w)?.name) || w);
+                                                        if (tenpaiNames.length === 0) return '유국 (전원 노텐)';
+                                                        if (tenpaiNames.length === 4) return '유국 (전원 텐파이)';
+                                                        return `유국 (텐: ${tenpaiNames.join('·')})`;
                                                     }
                                                     if (h.win_type === 'abortion') return `도중유국 (${({kyuushu:'구종구패',sufon:'사풍연타',suucha_riichi:'사가리치',suukantsu:'사깡산료'})[h.abortion_type] || '?'}${h.abortion_player ? ' · ' + h.abortion_player : ''})`;
                                                     if (h.win_type === 'chombo') return `촌보 (${h.chombo_player || '?'})`;
@@ -1286,6 +1292,13 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
             const found = sorted.find(s => s.wind === p.wind);
             return { ...p, rank: found.calculatedRank, uma: found.calculatedUma };
         });
+
+        // 점수 합계 검증 — 공탁금/계산 버그로 10만이 깨진 채 저장되는 것 방지
+        const scoreSum = finalScoresWithRank.reduce((s, p) => s + (p.score || 0), 0);
+        if (scoreSum !== 100000) {
+            alert(`⚠ 점수 합계가 100,000이 아닙니다 (현재 ${scoreSum.toLocaleString()}).\n리치봉 공탁 처리나 입력 내용을 확인해주세요.\n이 상태로는 저장할 수 없습니다.`);
+            return;
+        }
 
         const cc = calcClassCounts(seatPlayers, hands);
 
