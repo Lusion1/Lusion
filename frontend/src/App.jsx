@@ -308,7 +308,7 @@ export default function App() {
                 let calc = null;
                 if (h.win_type !== 'draw' && h.winner_name) {
                     try {
-                        if ((h.score_class && h.score_class !== 'normal') || (h.han && h.fu)) {
+                        if ((h.score_class && h.score_class !== 'normal') || (h.han && h.fu) || (parseInt(h.han) || 0) >= 5) {
                             calc = calcScore({
                                 isDealerWinner,
                                 winType: h.win_type,
