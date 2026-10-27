@@ -1310,7 +1310,8 @@ export default function MobileRecorder({ players, authToken, onClose, onSaved })
                     const isDealer = h._winnerWind === DEALER_WINDS[(h.hand_round_num || 1) - 1];
                     let calc = null;
                     try {
-                        if ((h.score_class && h.score_class !== 'normal') || (h.han && h.fu)) {
+                        // 5판 이상은 부수 없어도 자동 만관+ 등급 계산 (score_class 저장 누락 방지)
+                        if ((h.score_class && h.score_class !== 'normal') || (h.han && h.fu) || (parseInt(h.han) || 0) >= 5) {
                             calc = calcScore({
                                 isDealerWinner: isDealer,
                                 winType: h.win_type,
